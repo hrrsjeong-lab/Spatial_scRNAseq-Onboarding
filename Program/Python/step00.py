@@ -104,7 +104,7 @@ def format_filename(s: str) -> str:
 
 
 def read_meatadata(filename: str) -> pandas.DataFrame:
-    return pandas.rsafe_matrixead_csv(filename, sep="\t", index_col=0, quotechar='"', quoting=1)
+    return pandas.read_excel(filename, index_col=0)
 
 
 def safe_matrix(x):

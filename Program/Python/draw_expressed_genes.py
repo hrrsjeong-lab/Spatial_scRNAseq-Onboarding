@@ -21,14 +21,12 @@ if __name__ == "__main__":
 
     parser.add_argument("cell", help="Output TSV(.gz) file", type=str)
     parser.add_argument("gene", help="Output TSV(.gz) file", type=str)
-    parser.add_argument("meta", help="Metadata TSV(.gz) file", type=str)
     parser.add_argument("output", help="Output ZIP file", type=str)
 
     args = parser.parse_args()
 
     step00.check_suffix(args.cell, {".tsv", ".tsv.gz"})
     step00.check_suffix(args.gene, {".tsv", ".tsv.gz"})
-    step00.check_suffix(args.meta, {".tsv", ".tsv.gz"})
     step00.check_suffix(args.output, {".zip"})
 
     cell_data = pandas.read_csv(args.cell, sep="\t", index_col=0)
@@ -41,9 +39,11 @@ if __name__ == "__main__":
     sample_palette = dict(zip(sample_list, itertools.cycle(matplotlib.colors.TABLEAU_COLORS)))
     print("Sample:", len(sample_list), sample_list)
 
-    for sample in tqdm.tqdm(sample_list):
-        cell_data[sample] = list(map(lambda x: x if (x == sample) else step00.rest_value, cell_data[step00.sample_column]))
+    sample_series = cell_data[step00.sample_column]
+    sample_columns = pandas.DataFrame({sample: numpy.where(sample_series == sample, sample, step00.rest_value) for sample in tqdm.tqdm(sample_list)}, index=cell_data.index)
+    cell_data = pandas.concat([cell_data, sample_columns], axis=1)
     print(cell_data)
+    del sample_columns
 
     gene_data = pandas.read_csv(args.gene, sep="\t", index_col=0)
     gene_test_list = list(gene_data.columns)
@@ -54,9 +54,6 @@ if __name__ == "__main__":
     gene_palette = dict(zip(gene_list, itertools.cycle(matplotlib.colors.XKCD_COLORS)))
     gene_data["Gene"] = gene_list
     print(gene_data)
-
-    metadata = step00.read_meatadata(args.meta)
-    print(metadata.head())
 
     matplotlib.use("Agg")
     matplotlib.rcParams.update(step00.matplotlib_parameters)
@@ -104,7 +101,7 @@ if __name__ == "__main__":
             g.savefig(figure_list[-1])
             matplotlib.pyplot.close(g.figure)
 
-        for cell_test in tqdm.tqdm(cell_test_list[:4]):
+        for cell_test in tqdm.tqdm(cell_test_list):
             p_data = pandas.DataFrame(data=numpy.zeros((len(sample_list), len(sample_list))), index=sample_list, columns=sample_list, dtype=float)
 
             for sample_a, sample_b in tqdm.contrib.itertools.product(sample_list, sample_list, position=1, leave=False):
@@ -112,8 +109,7 @@ if __name__ == "__main__":
                     p_data.loc[sample_a, sample_b] = -numpy.log10(1.0)
                     continue
 
-                p_value = scipy.stats.mannwhitneyu(
-                    cell_data.loc[(cell_data[step00.sample_column] == sample_a), cell_test], cell_data.loc[(cell_data[step00.sample_column] == sample_b), cell_test])[1]
+                p_value = scipy.stats.mannwhitneyu(cell_data.loc[(cell_data[step00.sample_column] == sample_a), cell_test], cell_data.loc[(cell_data[step00.sample_column] == sample_b), cell_test])[1]
 
                 if numpy.isnan(p_value):
                     p_data.loc[sample_a, sample_b] = -numpy.log10(1.0)
