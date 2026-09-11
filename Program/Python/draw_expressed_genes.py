@@ -38,7 +38,7 @@ if __name__ == "__main__":
 
     cell_data[step00.sample_column] = list(map(lambda x: x.split("-")[-1], list(cell_data.index)))
     sample_list = sorted(set(cell_data[step00.sample_column]))
-    sample_palette = dict(zip(sample_list, itertools.cycle(matplotlib.colors.XKCD_COLORS)))
+    sample_palette = dict(zip(sample_list, itertools.cycle(matplotlib.colors.TABLEAU_COLORS)))
     print("Sample:", len(sample_list), sample_list)
 
     for sample in tqdm.tqdm(sample_list):
