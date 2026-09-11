@@ -7,7 +7,7 @@ MEM_PER_CPU = $(shell echo '$(MEMS)/$(CPUS)' | bc)
 # Programs
 SLURM = srun --chdir=$(abspath .) --cpus-per-task=$(CPUS) --export=ALL --job-name="scRNA_$(@F)" --mem=$(MEMS)G --mail-user="jaewoong@gist.ac.kr" --mail-type=ALL
 GPUS = --gpus=1
-PYTHON = /home/Live/jaewoong/JeongLab_Onboarding/4_Spatial_scRNAseq/.venv/bin/python3 -B
+PYTHON = /home/Live/jaewoong/Spatial_scRNAseq-Onboarding/Program/.venv/bin/python3 -B
 rwildcard = $(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(subst *,%,$2),$d))
 product = $(foreach x,$1,$(addprefix $x.,$2))
 
