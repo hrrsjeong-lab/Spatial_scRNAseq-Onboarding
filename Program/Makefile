@@ -7,13 +7,13 @@ MEM_PER_CPU = $(shell echo '$(MEMS)/$(CPUS)' | bc)
 # Programs
 SLURM = srun --chdir=$(abspath .) --cpus-per-task=$(CPUS) --export=ALL --job-name="scRNA_$(@F)" --mem=$(MEMS)G --mail-user="jaewoong@gist.ac.kr" --mail-type=ALL
 GPUS = --gpus=1
-PYTHON = /home/Live/jaewoong/Spatial_scRNAseq-Onboarding/Program/.venv/bin/python3 -B
+PYTHON = /home/Live/jaewoong/Spatial_scRNAseq-Onboarding/.venv/bin/python3 -B
 rwildcard = $(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(subst *,%,$2),$d))
 product = $(foreach x,$1,$(addprefix $x.,$2))
 
 # References
 HUMAN_FASTA = /home/Share/References/chm13/chm13v2.0.maskedY.fasta
-MATRIX_TSV = Metadata/GSE311609_series_matrix.tsv
+MATRIX_XLSX = Metadata/GSE311609_series_matrix.xlsx
 CANCERS = Test Lung_5K Lung# Breast
 DEGS = 01_Seurat 02_Cell_ranger# 03_Seurat_v3
 PROJECTIONS = 01_umap 02_tsne 03_phate 04_trimap
@@ -24,7 +24,7 @@ CELLTYPES = 01_Human_Lung_Atlas 02_Cells_Lung_Airway 03_Immune_All_High 04_Immun
 LOGGING = 1>$(abspath $@).log 2>&1
 LOGGING_DIR = 1>$(abspath $(@D)).log 2>&1
 
-all: step01 step02 step03 step04 step05 step06 step07
+all: step01 step02 step03 step04 step05 step06 step07 step08
 .PHONY: all
 
 clean:
@@ -58,7 +58,7 @@ Output/02_QC_expressed_genes/%.cell.tsv.gz: Python/qc_expressed_genes.py Output/
 Output/02_QC_expressed_genes/%.gene.tsv.gz: Python/qc_expressed_genes.py Output/01_Merging/%.hdf5 | Output/02_QC_expressed_genes
 	$(SLURM) $(PYTHON) $(abspath $^ $@) --target "gene" $(LOGGING)
 
-Output/02_QC_expressed_genes/Figures/%.zip: Python/draw_expressed_genes.py Output/02_QC_expressed_genes/%.cell.tsv.gz Output/02_QC_expressed_genes/%.gene.tsv.gz $(MATRIX_TSV) | Output/02_QC_expressed_genes/Figures
+Output/02_QC_expressed_genes/Figures/%.zip: Python/draw_expressed_genes.py Output/02_QC_expressed_genes/%.cell.tsv.gz Output/02_QC_expressed_genes/%.gene.tsv.gz | Output/02_QC_expressed_genes/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 step02-test: Output/02_QC_expressed_genes/Test.cell.tsv.gz Output/02_QC_expressed_genes/Test.gene.tsv.gz Output/02_QC_expressed_genes/Figures/Test.zip
