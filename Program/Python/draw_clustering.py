@@ -106,7 +106,7 @@ if __name__ == "__main__":
 
         matplotlib.pyplot.xlabel("Samples")
         matplotlib.pyplot.ylabel("Cluster count")
-        matplotlib.pyplot.xticks(range(len(sample_list)), sample_list, fontsize="xx-small", rotation="vertical")
+        matplotlib.pyplot.xticks(range(len(sample_list)), sample_list, rotation="vertical")
         matplotlib.pyplot.yticks(fontsize="xx-small")
         matplotlib.pyplot.legend(title="Cluster", loc="upper right", ncols=len(cluster_list) // 4)
         matplotlib.pyplot.tight_layout()
@@ -124,7 +124,7 @@ if __name__ == "__main__":
 
         matplotlib.pyplot.xlabel("Samples")
         matplotlib.pyplot.ylabel("Cluster proportion")
-        matplotlib.pyplot.xticks(range(len(sample_list)), sample_list, fontsize="xx-small", rotation="vertical")
+        matplotlib.pyplot.xticks(range(len(sample_list)), sample_list, rotation="vertical")
         matplotlib.pyplot.yticks(fontsize="xx-small")
         matplotlib.pyplot.legend(title="Cluster", loc="upper right", ncols=len(cluster_list) // 4)
         matplotlib.pyplot.tight_layout()
