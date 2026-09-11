@@ -19,7 +19,7 @@ done
 WATCH_DIRS=(
     "Program"
 )
-REMOTE_DIR="/home/Live/jaewoong/JeongLab_Onboarding/"
+REMOTE_DIR="/home/Live/jaewoong/Spatial_scRNAseq-Onboarding/"
 
 on_interrupt() {
     exit 0
