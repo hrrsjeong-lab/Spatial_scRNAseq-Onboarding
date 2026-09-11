@@ -17,7 +17,7 @@ for e in "${EXCLUDES[@]}"; do
 done
 
 WATCH_DIRS=(
-    "Program"
+    "Program/"
 )
 REMOTE_DIR="/home/Live/jaewoong/Spatial_scRNAseq-Onboarding/"
 
