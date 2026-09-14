@@ -186,8 +186,8 @@ Output/08_Marker_genes/%.04_Immune_All_Low.hdf5: Python/select_marker_genes.py O
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 Output/08_Marker_genes/Figures/%.zip: Python/draw_marker_genes.py Output/08_Marker_genes/%.hdf5 | Output/08_Marker_genes/Figures
-	$(PYTHON) $(abspath $^ $@)
+	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 step08-test: Output/08_Marker_genes/01_Human_Lung_Atlas.pkl Output/08_Marker_genes/Test.01_Seurat.01_umap.01_Leiden.01_Human_Lung_Atlas.hdf5 Output/08_Marker_genes/Figures/Test.01_Seurat.01_umap.01_Leiden.01_Human_Lung_Atlas.zip
-step08: $(addprefix Output/08_Marker_genes/,$(addsuffix .pkl,$(CELLTYPES))) $(addprefix Output/08_Marker_genes/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES)))))))
+step08: $(addprefix Output/08_Marker_genes/,$(addsuffix .pkl,$(CELLTYPES))) $(addprefix Output/08_Marker_genes/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES))))))) $(addprefix Output/08_Marker_genes/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES)))))))
 .PHONY: step08-test step08
