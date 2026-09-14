@@ -36,16 +36,21 @@ if __name__ == "__main__":
 
     cell_type_list = sorted(model.cell_types)
     gene_list = list(input_adata.var.index)
+    print("Gene:", len(gene_list))
+
     marker_data = pandas.DataFrame(index=input_adata.obs.index)
     input_adata.uns[step00.marker_column] = dict()
 
     for cell_type in tqdm.tqdm(cell_type_list):
-        marker_gene_list = list(model.extract_top_markers(cell_type))
+        marker_gene_list = sorted(set(model.extract_top_markers(cell_type, top_n=50)) & set(gene_list))
+
+        if not marker_gene_list:
+            continue
+
         input_adata.uns[step00.marker_column][step00.safe_celltype(cell_type)] = marker_gene_list
-        if set(marker_gene_list) & set(gene_list):
-            rapids_singlecell.tl.score_genes(input_adata, marker_gene_list, score_name=cell_type, layer=step00.log_column, use_raw=False, ctrl_as_ref=False)
-            marker_data[step00.safe_celltype(cell_type)] = input_adata.obs[cell_type]
-            del input_adata.obs[cell_type]
+        rapids_singlecell.tl.score_genes(input_adata, marker_gene_list, score_name=cell_type, layer=step00.log_column, use_raw=False, ctrl_as_ref=False)
+        marker_data[step00.safe_celltype(cell_type)] = input_adata.obs[cell_type]
+        del input_adata.obs[cell_type]
     input_adata.obsm[step00.marker_column] = marker_data
     print(input_adata)
 
