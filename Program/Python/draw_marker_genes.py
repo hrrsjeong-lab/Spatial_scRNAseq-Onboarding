@@ -149,7 +149,6 @@ if __name__ == "__main__":
             figure_list.append(f"{directory}/Cluster-{cluster}.png")
             fig.savefig(figure_list[-1])
             matplotlib.pyplot.close(fig)
-            break
 
         fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
 
