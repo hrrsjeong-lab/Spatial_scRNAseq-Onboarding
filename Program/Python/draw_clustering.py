@@ -68,16 +68,16 @@ if __name__ == "__main__":
         for i, sample in tqdm.contrib.tenumerate(sample_list):
             matplotlib.pyplot.bar(range(len(cluster_list)), counter_data.iloc[i, :], bottom=counter_data.iloc[:i, :].sum(axis="index"), color=sample_palette[sample], label=sample, linewidth=0, edgecolor=None)
 
-        matplotlib.pyplot.xlabel("Cluster")
+        matplotlib.pyplot.xlabel(step00.clustering_column)
         matplotlib.pyplot.ylabel("Cell counts")
         matplotlib.pyplot.xticks(range(len(cluster_list)), cluster_list, rotation="vertical")
         matplotlib.pyplot.yticks(fontsize="xx-small")
-        matplotlib.pyplot.legend(title="Sample", loc="upper right")
+        matplotlib.pyplot.legend(title=step00.sample_column, loc="upper right")
         matplotlib.pyplot.tight_layout()
 
-        figure_list.append(f"{directory}/Sample-Count.pdf")
+        figure_list.append(f"{directory}/{step00.sample_column}-Count.pdf")
         fig.savefig(figure_list[-1])
-        figure_list.append(f"{directory}/Sample-Count.png")
+        figure_list.append(f"{directory}/{step00.sample_column}-Count.png")
         fig.savefig(figure_list[-1])
         matplotlib.pyplot.close(fig)
 
@@ -86,16 +86,16 @@ if __name__ == "__main__":
         for i, sample in tqdm.contrib.tenumerate(sample_list):
             matplotlib.pyplot.bar(range(len(cluster_list)), (counter_data.iloc[i, :] / counter_data.sum(axis="index")), bottom=(counter_data.iloc[:i, :].sum(axis="index") / counter_data.sum(axis="index")), color=sample_palette[sample], label=sample, linewidth=0, edgecolor=None)
 
-        matplotlib.pyplot.xlabel("Cluster")
+        matplotlib.pyplot.xlabel(step00.clustering_column)
         matplotlib.pyplot.ylabel("Cell proportion")
         matplotlib.pyplot.xticks(range(len(cluster_list)), cluster_list, rotation="vertical")
         matplotlib.pyplot.yticks(fontsize="xx-small")
-        matplotlib.pyplot.legend(title="Sample", loc="upper right")
+        matplotlib.pyplot.legend(title=step00.sample_column, loc="upper right")
         matplotlib.pyplot.tight_layout()
 
-        figure_list.append(f"{directory}/Sample-Proportion.pdf")
+        figure_list.append(f"{directory}/{step00.sample_column}-Proportion.pdf")
         fig.savefig(figure_list[-1])
-        figure_list.append(f"{directory}/Sample-Proportion.png")
+        figure_list.append(f"{directory}/{step00.sample_column}-Proportion.png")
         fig.savefig(figure_list[-1])
         matplotlib.pyplot.close(fig)
 
@@ -104,16 +104,16 @@ if __name__ == "__main__":
         for i, cluster in tqdm.contrib.tenumerate(cluster_list):
             matplotlib.pyplot.bar(range(len(sample_list)), counter_data.iloc[:, i], bottom=counter_data.iloc[:, :i].sum(axis="columns"), color=cluster_palette[cluster], label=cluster, linewidth=0, edgecolor=None)
 
-        matplotlib.pyplot.xlabel("Samples")
-        matplotlib.pyplot.ylabel("Cluster count")
+        matplotlib.pyplot.xlabel(step00.sample_column)
+        matplotlib.pyplot.ylabel("Cell count")
         matplotlib.pyplot.xticks(range(len(sample_list)), sample_list, rotation="vertical")
         matplotlib.pyplot.yticks(fontsize="xx-small")
-        matplotlib.pyplot.legend(title="Cluster", loc="upper right", ncols=len(cluster_list) // 4)
+        matplotlib.pyplot.legend(title=step00.clustering_column, loc="upper right", ncols=len(cluster_list) // 4)
         matplotlib.pyplot.tight_layout()
 
-        figure_list.append(f"{directory}/Cluster-Count.pdf")
+        figure_list.append(f"{directory}/{step00.clustering_column}-Count.pdf")
         fig.savefig(figure_list[-1])
-        figure_list.append(f"{directory}/Cluster-Count.png")
+        figure_list.append(f"{directory}/{step00.clustering_column}-Count.png")
         fig.savefig(figure_list[-1])
         matplotlib.pyplot.close(fig)
 
@@ -122,16 +122,16 @@ if __name__ == "__main__":
         for i, cluster in tqdm.contrib.tenumerate(cluster_list):
             matplotlib.pyplot.bar(range(len(sample_list)), (counter_data.iloc[:, i] / counter_data.sum(axis="columns")), bottom=(counter_data.iloc[:, :i].sum(axis="columns") / counter_data.sum(axis="columns")), color=cluster_palette[cluster], label=cluster, linewidth=0, edgecolor=None)
 
-        matplotlib.pyplot.xlabel("Samples")
-        matplotlib.pyplot.ylabel("Cluster proportion")
+        matplotlib.pyplot.xlabel(step00.sample_column)
+        matplotlib.pyplot.ylabel("Cell proportion")
         matplotlib.pyplot.xticks(range(len(sample_list)), sample_list, rotation="vertical")
         matplotlib.pyplot.yticks(fontsize="xx-small")
-        matplotlib.pyplot.legend(title="Cluster", loc="upper right", ncols=len(cluster_list) // 4)
+        matplotlib.pyplot.legend(title=step00.clustering_column, loc="upper right", ncols=len(cluster_list) // 4)
         matplotlib.pyplot.tight_layout()
 
-        figure_list.append(f"{directory}/Cluster-Proportion.pdf")
+        figure_list.append(f"{directory}/{step00.clustering_column}-Proportion.pdf")
         fig.savefig(figure_list[-1])
-        figure_list.append(f"{directory}/Cluster-Proportion.png")
+        figure_list.append(f"{directory}/{step00.clustering_column}-Proportion.png")
         fig.savefig(figure_list[-1])
         matplotlib.pyplot.close(fig)
 
