@@ -1,5 +1,4 @@
 import argparse
-import numpy
 import pandas
 import scanpy
 import tqdm
@@ -31,16 +30,13 @@ if __name__ == "__main__":
     input_adata = scanpy.read_h5ad(args.input)
     print(input_adata)
 
-    array = numpy.asarray(input_adata.X)
-    array = numpy.nan_to_num(array, nan=0.0, posinf=0.0, neginf=0.0)
-    array[(array < 0)] = 0.0
-    input_adata.X = array
+    input_adata.X = step00.safe_matrix(input_adata.X)
     print(input_adata)
 
-    scanpy.pp.filter_cells(input_adata, min_genes=200)
+    scanpy.pp.filter_cells(input_adata, min_genes=5)
     print(input_adata)
 
-    scanpy.pp.filter_genes(input_adata, min_cells=3)
+    scanpy.pp.filter_genes(input_adata, min_cells=5)
     print(input_adata)
 
     cell_data = pandas.read_csv(args.cell, sep="\t", index_col=0)

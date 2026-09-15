@@ -23,7 +23,7 @@ if __name__ == "__main__":
     input_adata = scanpy.read_h5ad(args.input)
     print(input_adata)
 
-    rapids_singlecell.tl.rank_genes_groups(input_adata, groupby=step00.clustering_column, mask_var="highly_variable", method="wilcoxon", tie_correct=True, pts=True, use_continuity=True, layer=step00.log_column)
+    rapids_singlecell.tl.rank_genes_groups(input_adata, groupby=step00.clustering_column, method="wilcoxon", tie_correct=True, pts=True, use_continuity=True, layer=step00.log_column)
     print(input_adata)
 
     backup_x = input_adata.X.copy()
@@ -48,9 +48,9 @@ if __name__ == "__main__":
             continue
 
         input_adata.uns[step00.marker_column][step00.safe_celltype(cell_type)] = marker_gene_list
-        rapids_singlecell.tl.score_genes(input_adata, marker_gene_list, score_name=cell_type, layer=step00.log_column, use_raw=False, ctrl_as_ref=False)
-        marker_data[step00.safe_celltype(cell_type)] = input_adata.obs[cell_type]
-        del input_adata.obs[cell_type]
+        rapids_singlecell.tl.score_genes(input_adata, marker_gene_list, score_name=step00.safe_celltype(cell_type), layer=step00.log_column, use_raw=False, ctrl_as_ref=False)
+        marker_data[step00.safe_celltype(cell_type)] = input_adata.obs[step00.safe_celltype(cell_type)]
+        del input_adata.obs[step00.safe_celltype(cell_type)]
     input_adata.obsm[step00.marker_column] = marker_data
     print(input_adata)
 

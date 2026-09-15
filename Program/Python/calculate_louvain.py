@@ -17,9 +17,6 @@ if __name__ == "__main__":
     input_adata = scanpy.read_h5ad(args.input)
     print(input_adata)
 
-    input_adata.X = step00.safe_matrix(input_adata.X)
-    print(input_adata)
-
     rapids_singlecell.get.anndata_to_GPU(input_adata, convert_all=True)
     rapids_singlecell.tl.louvain(input_adata, key_added=step00.clustering_column)
     input_adata.obs[step00.clustering_column] = input_adata.obs[step00.clustering_column].astype(str).astype("category")
