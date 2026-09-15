@@ -24,13 +24,16 @@ CELLTYPES = 01_Human_Lung_Atlas 02_Cells_Lung_Airway 03_Immune_All_High 04_Immun
 LOGGING = 1>$(abspath $@).log 2>&1
 LOGGING_DIR = 1>$(abspath $(@D)).log 2>&1
 
-all: step01 step02 step03 step04 step05 step06 step07 step08
+all: test optimal step01 step02 step03 step04 step05 step06 step07 step08
 .PHONY: all
 
 clean:
 .PHONY: clean
 
-test:
+optimal: step01-optimal step02-optimal step03-optimal step04-optimal step05-optimal step06-optimal step07-optimal step08-optimal
+.PHONY: optimal
+
+test: step01-test step02-test step03-test step04-test step05-test step06-test step07-test step08-test
 .PHONY: test
 
 # Step 01 (Merge input)
@@ -71,9 +74,10 @@ Output/03_QC_filtering:
 	mkdir -p $@
 
 Output/03_QC_filtering/%.hdf5: Python/qc_filtering.py Output/01_Merging/%.hdf5 Output/02_QC_expressed_genes/%.cell.tsv.gz Output/02_QC_expressed_genes/%.gene.tsv.gz | Output/03_QC_filtering
-	$(SLURM) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) $(LOGGING)
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) $(LOGGING)
 
 step03-test: Output/03_QC_filtering/Test.hdf5
+step03-optimal: Output/03_QC_filtering/Lung_5K.hdf5
 step03: $(addprefix Output/03_QC_filtering/,$(addsuffix .hdf5,$(CANCERS)))
 .PHONY: step03-test step03-optimal step03
 
@@ -94,8 +98,9 @@ Output/04_Highly_variable_genes/Figures/%.zip: Python/draw_variable_genes.py Out
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 step04-test: Output/04_Highly_variable_genes/Test.01_Seurat.hdf5 Output/04_Highly_variable_genes/Figures/Test.01_Seurat.zip
+step04-optimal: Output/04_Highly_variable_genes/Lung_5K.01_Seurat.hdf5 Output/04_Highly_variable_genes/Figures/Lung_5K.01_Seurat.zip
 step04: $(addprefix Output/04_Highly_variable_genes/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(DEGS)))) $(addprefix Output/04_Highly_variable_genes/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(DEGS))))
-.PHONY: step04-test step04
+.PHONY: step04-test step04-optimal step04
 
 # Step 05 (PCA)
 Output/05_PCA:
@@ -111,8 +116,9 @@ Output/05_PCA/Figures/%.zip: Python/draw_pca.py Output/05_PCA/%.hdf5 | Output/05
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 step05-test: Output/05_PCA/Test.01_Seurat.hdf5 Output/05_PCA/Figures/Test.01_Seurat.zip
+step05-optimal: Output/05_PCA/Lung_5K.01_Seurat.hdf5 Output/05_PCA/Figures/Lung_5K.01_Seurat.zip
 step05: $(addprefix Output/05_PCA/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(DEGS)))) $(addprefix Output/05_PCA/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(DEGS))))
-.PHONY: step05-test step05
+.PHONY: step05-test step05-optimal step05
 
 # Step 06 (Dimensional reduction)
 Output/06_Dimensional_reduction:
@@ -131,8 +137,9 @@ Output/06_Dimensional_reduction/%.04_trimap.hdf5: Python/calculate_trimap.py Out
 	$(SLURM) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) $(LOGGING)
 
 step06-test: Output/06_Dimensional_reduction/Test.01_Seurat.01_umap.hdf5
+step06-optimal: Output/06_Dimensional_reduction/Lung_5K.01_Seurat.01_umap.hdf5
 step06: $(addprefix Output/06_Dimensional_reduction/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(call product,$(DEGS),$(PROJECTIONS)))))
-.PHONY: step06-test step06
+.PHONY: step06-test step06-optimal step06
 
 # Step 07 (Clustering)
 Output/07_Clustering:
@@ -151,8 +158,9 @@ Output/07_Clustering/Figures/%.zip: Python/draw_clustering.py Output/07_Clusteri
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 step07-test: Output/07_Clustering/Test.01_Seurat.01_umap.01_Leiden.hdf5 Output/07_Clustering/Figures/Test.01_Seurat.01_umap.01_Leiden.zip
+step07-optimal: Output/07_Clustering/Lung_5K.01_Seurat.01_umap.01_Leiden.hdf5 Output/07_Clustering/Figures/Lung_5K.01_Seurat.01_umap.01_Leiden.zip
 step07: $(addprefix Output/07_Clustering/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(CLUSTERINGS)))))) $(addprefix Output/07_Clustering/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(CLUSTERINGS))))))
-.PHONY: step07-test step07
+.PHONY: step07-test step07-optimal step07
 
 # Step 08 (Marker genes)
 Output/08_Marker_genes:
@@ -189,5 +197,6 @@ Output/08_Marker_genes/Figures/%.zip: Python/draw_marker_genes.py Output/08_Mark
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 step08-test: Output/08_Marker_genes/01_Human_Lung_Atlas.pkl Output/08_Marker_genes/Test.01_Seurat.01_umap.01_Leiden.01_Human_Lung_Atlas.hdf5 Output/08_Marker_genes/Figures/Test.01_Seurat.01_umap.01_Leiden.01_Human_Lung_Atlas.zip
+step08-optimal: Output/08_Marker_genes/01_Human_Lung_Atlas.pkl Output/08_Marker_genes/Lung_5K.01_Seurat.01_umap.01_Leiden.01_Human_Lung_Atlas.hdf5 Output/08_Marker_genes/Figures/Lung_5K.01_Seurat.01_umap.01_Leiden.01_Human_Lung_Atlas.zip
 step08: $(addprefix Output/08_Marker_genes/,$(addsuffix .pkl,$(CELLTYPES))) $(addprefix Output/08_Marker_genes/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES))))))) $(addprefix Output/08_Marker_genes/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES)))))))
-.PHONY: step08-test step08
+.PHONY: step08-test step08-optimal step08

@@ -1,6 +1,7 @@
 import argparse
 import pandas
 import scanpy
+import rapids_singlecell
 import tqdm
 import step00
 
@@ -33,10 +34,11 @@ if __name__ == "__main__":
     input_adata.X = step00.safe_matrix(input_adata.X)
     print(input_adata)
 
-    scanpy.pp.filter_cells(input_adata, min_genes=5)
+    rapids_singlecell.get.anndata_to_GPU(input_adata)
+    rapids_singlecell.pp.filter_cells(input_adata, min_genes=300)
     print(input_adata)
 
-    scanpy.pp.filter_genes(input_adata, min_cells=5)
+    rapids_singlecell.pp.filter_genes(input_adata, min_cells=50)
     print(input_adata)
 
     cell_data = pandas.read_csv(args.cell, sep="\t", index_col=0)
@@ -56,10 +58,10 @@ if __name__ == "__main__":
     print(input_adata)
 
     input_adata.layers[step00.log_column] = input_adata.layers["Counts"].astype(float, copy=True)
-
-    scanpy.pp.normalize_total(input_adata, exclude_highly_expressed=True, target_sum=10 ** 4, layer=step00.log_column, inplace=True)
+    rapids_singlecell.get.anndata_to_GPU(input_adata, layer=step00.log_column)
+    rapids_singlecell.pp.normalize_total(input_adata, exclude_highly_expressed=True, target_sum=10 ** 4, layer=step00.log_column)
     print(input_adata)
 
-    scanpy.pp.log1p(input_adata, layer=step00.log_column)
+    rapids_singlecell.pp.log1p(input_adata, layer=step00.log_column)
     print(input_adata)
     input_adata.write_h5ad(args.output, **step00.anndata_compressions)

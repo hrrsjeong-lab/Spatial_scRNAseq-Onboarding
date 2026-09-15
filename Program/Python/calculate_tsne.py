@@ -21,6 +21,6 @@ if __name__ == "__main__":
     input_adata = scanpy.read_h5ad(args.input)
     print(input_adata)
 
-    rapids_singlecell.tl.tsne(input_adata, key_added=step00.projection_key)
+    rapids_singlecell.tl.tsne(input_adata, n_pcs=10, use_rep="X_pca", key_added=step00.projection_key, random_state=42)
     print(input_adata)
     input_adata.write_h5ad(args.output, **step00.anndata_compressions)

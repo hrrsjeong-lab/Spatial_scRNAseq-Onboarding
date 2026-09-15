@@ -17,9 +17,10 @@ if __name__ == "__main__":
     input_adata = scanpy.read_h5ad(args.input)
     print(input_adata)
 
-    rapids_singlecell.pp.pca(input_adata, svd_solver="covariance_eigh", random_state=42)
+    # scanpy.pp.scale(input_adata, max_value=10)
+    rapids_singlecell.pp.pca(input_adata, layer=step00.log_column, svd_solver="covariance_eigh", random_state=42)
     print(input_adata)
 
-    rapids_singlecell.pp.neighbors(input_adata, random_state=42)
+    rapids_singlecell.pp.neighbors(input_adata, n_pcs=10, algorithm="ivfpq", random_state=42)
     print(input_adata)
     input_adata.write_h5ad(args.output, **step00.anndata_compressions)

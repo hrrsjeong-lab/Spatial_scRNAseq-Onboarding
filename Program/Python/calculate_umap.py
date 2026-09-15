@@ -21,6 +21,6 @@ if __name__ == "__main__":
     input_adata = scanpy.read_h5ad(args.input)
     print(input_adata)
 
-    rapids_singlecell.tl.umap(input_adata, random_state=42, maxiter=10 ** 3, key_added=step00.projection_key)
+    rapids_singlecell.tl.umap(input_adata, random_state=42, maxiter=10 ** 3, init_pos="random", key_added=step00.projection_key)
     print(input_adata)
     input_adata.write_h5ad(args.output, **step00.anndata_compressions)

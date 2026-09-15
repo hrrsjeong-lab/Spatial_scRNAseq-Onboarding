@@ -19,7 +19,7 @@ if __name__ == "__main__":
     input_adata.layers["Counts"] = step00.safe_matrix(input_adata.layers["Counts"])
     print(input_adata)
 
-    scanpy.pp.highly_variable_genes(input_adata, flavor=args.flavor, layer=step00.log_column)
+    scanpy.pp.highly_variable_genes(input_adata, flavor=args.flavor)
     print(input_adata)
 
     scanpy.pp.scrublet(input_adata)

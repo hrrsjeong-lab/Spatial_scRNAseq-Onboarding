@@ -23,7 +23,7 @@ if __name__ == "__main__":
     input_adata = scanpy.read_h5ad(args.input)
     print(input_adata)
 
-    rapids_singlecell.tl.rank_genes_groups(input_adata, groupby=step00.clustering_column, method="wilcoxon", tie_correct=True, pts=True, use_continuity=True, layer=step00.log_column)
+    rapids_singlecell.tl.rank_genes_groups(input_adata, groupby=step00.clustering_column, mask_var="highly_variable", method="wilcoxon", tie_correct=True, pts=True, use_continuity=True, layer=step00.log_column)
     print(input_adata)
 
     backup_x = input_adata.X.copy()
