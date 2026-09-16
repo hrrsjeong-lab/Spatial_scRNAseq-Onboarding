@@ -34,6 +34,7 @@ projection_columns = ("Axis-1", "Axis-2")
 clustering_column = "Clustering"
 celltype_column = "Celltype"
 marker_column = "Marker"
+spatial_columns = ("Xenium_x_centroid", "Xenium_y_centroid")
 
 rest_value = "Rest"
 rest_color = "lightgray"
