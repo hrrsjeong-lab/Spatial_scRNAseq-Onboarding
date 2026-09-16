@@ -32,7 +32,7 @@ if __name__ == "__main__":
     input_adata = scanpy.read_h5ad(args.input)
     print(input_adata)
 
-    sample_list = sorted(set(input_adata.obs["sample"]))
+    sample_list = sorted(set(input_adata.obs[step00.sample_column]))
     sample_palette = dict(zip(sample_list, itertools.cycle(matplotlib.colors.TABLEAU_COLORS)))
     print("Sample:", len(sample_list), sample_list)
 
@@ -41,7 +41,7 @@ if __name__ == "__main__":
     print("Clustering:", len(cluster_list), cluster_list)
 
     clustering_data = pandas.DataFrame(input_adata.obsm[step00.projection_key], index=input_adata.obs.index, columns=step00.projection_columns)
-    for column in tqdm.tqdm([step00.clustering_column, "sample"]):
+    for column in tqdm.tqdm([step00.clustering_column, step00.sample_column]):
         clustering_data[column] = input_adata.obs[column]
     print(clustering_data)
 
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     cell_type_palette = dict(zip(cell_type_list, itertools.cycle(matplotlib.colors.XKCD_COLORS)))
     print("Cell type:", len(cell_type_list), cell_type_list)
 
-    sample_list = sorted(set(clustering_data["sample"]))
+    sample_list = sorted(set(clustering_data[step00.sample_column]))
     sample_palette = dict(zip(sample_list, itertools.cycle(matplotlib.colors.TABLEAU_COLORS)))
     print("Sample:", len(sample_list), sample_list)
 
@@ -165,13 +165,14 @@ if __name__ == "__main__":
         fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
 
         seaborn.scatterplot(data=clustering_data, x=step00.projection_columns[0], y=step00.projection_columns[1], hue=step00.celltype_column, hue_order=cell_type_list, palette=cell_type_palette, rasterized=True, s=30, edgecolor=None, ax=ax)
+
         for cluster in tqdm.tqdm(cluster_list):
             step00.confidence_ellipse(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[0]], clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[1]], ax=ax, edgecolor="black", linewidth=2.5)
             matplotlib.pyplot.text(numpy.mean(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[0]]), numpy.mean(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[1]]), cluster, horizontalalignment="center", verticalalignment="center", fontsize="medium", color="black", path_effects=step00.path_effects)
 
         ax.set_xticklabels([])
         ax.set_yticklabels([])
-        matplotlib.pyplot.legend(loc="lower left", title="Cell types", title_fontsize="xx-small")
+        matplotlib.pyplot.legend(loc="lower left", title=step00.celltype_column, title_fontsize="xx-small")
         matplotlib.pyplot.tight_layout()
 
         figure_list.append(f"{directory}/Scatter-{step00.celltype_column}.pdf")
