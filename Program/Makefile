@@ -14,7 +14,7 @@ product = $(foreach x,$1,$(addprefix $x.,$2))
 # References
 HUMAN_FASTA = /home/Share/References/chm13/chm13v2.0.maskedY.fasta
 MATRIX_XLSX = Metadata/GSE311609_series_matrix.xlsx
-CANCERS = Test Lung_5K Lung# Breast
+CANCERS = Test Lung_5K# Lung Breast
 DEGS = 01_Seurat 02_Cell_ranger# 03_Seurat_v3
 PROJECTIONS = 01_umap 02_tsne 03_phate 04_trimap
 CLUSTERINGS = 01_Leiden 02_Louvain
@@ -25,16 +25,16 @@ LOGGING = 1>$(abspath $@).log 2>&1
 LOGGING_DIR = 1>$(abspath $(@D)).log 2>&1
 LOGGING_TEE = 2>&1 | tee $(abspath $@).log
 
-all: test optimal step01 step02 step03 step04 step05 step06 step07 step08
+all: test optimal step01 step02 step03 step04 step05 step06 step07 step08 step09
 .PHONY: all
 
 clean:
 .PHONY: clean
 
-optimal: step01-optimal step02-optimal step03-optimal step04-optimal step05-optimal step06-optimal step07-optimal step08-optimal
+optimal: step01-optimal step02-optimal step03-optimal step04-optimal step05-optimal step06-optimal step07-optimal step08-optimal step09-optimal
 .PHONY: optimal
 
-test: step01-test step02-test step03-test step04-test step05-test step06-test step07-test step08-test
+test: step01-test step02-test step03-test step04-test step05-test step06-test step07-test step08-test step09-test
 .PHONY: test
 
 # Step 01 (Merge input)
@@ -208,5 +208,17 @@ Output/08_Marker_genes/Figures/%.zip: Python/draw_marker_genes.py Output/08_Mark
 
 step08-test: Output/08_Marker_genes/References/05_Bilous2026_Lung5K_Level2.pkl Output/08_Marker_genes/Test.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.hdf5 Output/08_Marker_genes/Figures/Test.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.zip
 step08-optimal: Output/08_Marker_genes/References/05_Bilous2026_Lung5K_Level2.pkl Output/08_Marker_genes/Lung_5K.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.hdf5 Output/08_Marker_genes/Figures/Lung_5K.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.zip
-step08: $(addprefix Output/08_Marker_genes/,$(addsuffix .pkl,$(CELLTYPES))) $(addprefix Output/08_Marker_genes/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES))))))) $(addprefix Output/08_Marker_genes/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES)))))))
+step08: $(addprefix Output/08_Marker_genes/References/,$(addsuffix .pkl,$(CELLTYPES))) $(addprefix Output/08_Marker_genes/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES))))))) $(addprefix Output/08_Marker_genes/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES)))))))
 .PHONY: step08-test step08-optimal step08
+
+# Step 09 (Xenium)
+Output/09_Xenium/Figures:
+	mkdir -p $@
+
+Output/09_Xenium/Figures/%.zip: Python/draw_xenium_coordinates.py Output/08_Marker_genes/%.hdf5 | Output/09_Xenium/Figures
+	$(PYTHON) $(abspath $^ $@) $(LOGGING)
+
+step09-test: Output/09_Xenium/Figures/Test.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.zip
+step09-optimal: Output/09_Xenium/Figures/Lung_5K.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.zip
+step09: $(addprefix Output/09_Xenium/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES)))))))
+.PHONY: step09-test step09-optimal step09
