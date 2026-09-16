@@ -59,7 +59,7 @@ if __name__ == "__main__":
 
     input_adata.layers[step00.log_column] = input_adata.layers["Counts"].astype(float, copy=True)
     rapids_singlecell.get.anndata_to_GPU(input_adata, layer=step00.log_column)
-    rapids_singlecell.pp.normalize_total(input_adata, exclude_highly_expressed=True, target_sum=10 ** 4, layer=step00.log_column)
+    rapids_singlecell.pp.normalize_total(input_adata, exclude_highly_expressed=False, target_sum=10 ** 4, layer=step00.log_column)
     print(input_adata)
 
     rapids_singlecell.pp.log1p(input_adata, layer=step00.log_column)
