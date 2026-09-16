@@ -18,11 +18,12 @@ CANCERS = Test Lung_5K Lung# Breast
 DEGS = 01_Seurat 02_Cell_ranger# 03_Seurat_v3
 PROJECTIONS = 01_umap 02_tsne 03_phate 04_trimap
 CLUSTERINGS = 01_Leiden 02_Louvain
-CELLTYPES = 01_Human_Lung_Atlas 02_Cells_Lung_Airway 03_Immune_All_High 04_Immune_All_Low
+CELLTYPES = 01_Human_Lung_Atlas 02_Cells_Lung_Airway 03_Immune_All_High 04_Immune_All_Low 05_Bilous2026_Lung5K_Level2
 
 # Options
 LOGGING = 1>$(abspath $@).log 2>&1
 LOGGING_DIR = 1>$(abspath $(@D)).log 2>&1
+LOGGING_TEE = 2>&1 | tee $(abspath $@).log
 
 all: test optimal step01 step02 step03 step04 step05 step06 step07 step08
 .PHONY: all
@@ -163,40 +164,49 @@ step07: $(addprefix Output/07_Clustering/,$(addsuffix .hdf5,$(call product,$(CAN
 .PHONY: step07-test step07-optimal step07
 
 # Step 08 (Marker genes)
-Output/08_Marker_genes:
+Output/08_Marker_genes/References:
 	mkdir -p $@
 
 Output/08_Marker_genes/Figures:
 	mkdir -p $@
 
-Output/08_Marker_genes/01_Human_Lung_Atlas.pkl: | Output/08_Marker_genes
+Output/08_Marker_genes/References/01_Human_Lung_Atlas.pkl: | Output/08_Marker_genes/References
 	wget "https://celltypist.cog.sanger.ac.uk/models/Human_Lung_Sikkema/v2/Human_Lung_Atlas.pkl" -O $(abspath $@) $(LOGGING)
 
-Output/08_Marker_genes/02_Cells_Lung_Airway.pkl: | Output/08_Marker_genes
+Output/08_Marker_genes/References/02_Cells_Lung_Airway.pkl: | Output/08_Marker_genes/References
 	wget "https://celltypist.cog.sanger.ac.uk/models/Lung_Airway_Madissoon/v4/Cells_Lung_Airway.pkl" -O $(abspath $@) $(LOGGING)
 
-Output/08_Marker_genes/03_Immune_All_High.pkl: | Output/08_Marker_genes
+Output/08_Marker_genes/References/03_Immune_All_High.pkl: | Output/08_Marker_genes/References
 	wget "https://celltypist.cog.sanger.ac.uk/models/Pan_Immune_CellTypist/v2/Immune_All_High.pkl" -O $(abspath $@) $(LOGGING)
 
-Output/08_Marker_genes/04_Immune_All_Low.pkl: | Output/08_Marker_genes
+Output/08_Marker_genes/References/04_Immune_All_Low.pkl: | Output/08_Marker_genes/References
 	wget "https://celltypist.cog.sanger.ac.uk/models/Pan_Immune_CellTypist/v2/Immune_All_Low.pkl" -O $(abspath $@) $(LOGGING)
 
-Output/08_Marker_genes/%.01_Human_Lung_Atlas.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/01_Human_Lung_Atlas.pkl
+Output/08_Marker_genes/References/Bilous2026_Lung5K_Level2.h5ad: | Output/08_Marker_genes/References
+	wget "https://datasets.cellxgene.cziscience.com/4ca422ae-e4ad-4884-9073-7c3799cd9143.h5ad" -o $(abspath $@) $(LOGGING)
+
+Output/08_Marker_genes/References/05_Bilous2026_Lung5K_Level2.pkl: Python/train_celltype_reference.py Output/08_Marker_genes/References/Bilous2026_Lung5K_Level2.h5ad
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) $(LOGGING)
+
+Output/08_Marker_genes/%.01_Human_Lung_Atlas.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/01_Human_Lung_Atlas.pkl
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-Output/08_Marker_genes/%.02_Cells_Lung_Airway.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/02_Cells_Lung_Airway.pkl
+Output/08_Marker_genes/%.02_Cells_Lung_Airway.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/02_Cells_Lung_Airway.pkl
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-Output/08_Marker_genes/%.03_Immune_All_High.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/03_Immune_All_High.pkl
+Output/08_Marker_genes/%.03_Immune_All_High.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/03_Immune_All_High.pkl
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-Output/08_Marker_genes/%.04_Immune_All_Low.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/04_Immune_All_Low.pkl
+Output/08_Marker_genes/%.04_Immune_All_Low.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/04_Immune_All_Low.pkl
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
+
+Output/08_Marker_genes/%.05_Bilous2026_Lung5K_Level2.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/05_Bilous2026_Lung5K_Level2.pkl
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 Output/08_Marker_genes/Figures/%.zip: Python/draw_marker_genes.py Output/08_Marker_genes/%.hdf5 | Output/08_Marker_genes/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-step08-test: Output/08_Marker_genes/01_Human_Lung_Atlas.pkl Output/08_Marker_genes/Test.01_Seurat.01_umap.01_Leiden.01_Human_Lung_Atlas.hdf5 Output/08_Marker_genes/Figures/Test.01_Seurat.01_umap.01_Leiden.01_Human_Lung_Atlas.zip
-step08-optimal: Output/08_Marker_genes/01_Human_Lung_Atlas.pkl Output/08_Marker_genes/Lung_5K.01_Seurat.01_umap.01_Leiden.01_Human_Lung_Atlas.hdf5 Output/08_Marker_genes/Figures/Lung_5K.01_Seurat.01_umap.01_Leiden.01_Human_Lung_Atlas.zip
+step08-test: Output/08_Marker_genes/References/05_Bilous2026_Lung5K_Level2.pkl Output/08_Marker_genes/Test.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.hdf5 Output/08_Marker_genes/Figures/Test.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.zip
+step08-optimal: Output/08_Marker_genes/References/05_Bilous2026_Lung5K_Level2.pkl Output/08_Marker_genes/Lung_5K.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.hdf5 Output/08_Marker_genes/Figures/Lung_5K.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.zip
 step08: $(addprefix Output/08_Marker_genes/,$(addsuffix .pkl,$(CELLTYPES))) $(addprefix Output/08_Marker_genes/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES))))))) $(addprefix Output/08_Marker_genes/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES)))))))
 .PHONY: step08-test step08-optimal step08
