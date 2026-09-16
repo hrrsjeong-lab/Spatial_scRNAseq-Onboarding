@@ -37,7 +37,7 @@ if __name__ == "__main__":
     print("Clustering:", len(cluster_list), cluster_list)
 
     clustering_data = pandas.DataFrame(input_adata.obsm[step00.projection_key], index=input_adata.obs.index, columns=step00.projection_columns)
-    for column in tqdm.tqdm([step00.clustering_column, "sample"]):
+    for column in tqdm.tqdm([step00.clustering_column, step00.sample_column]):
         clustering_data[column] = input_adata.obs[column]
     print(clustering_data)
 
@@ -45,11 +45,11 @@ if __name__ == "__main__":
     clustering_data = pandas.concat([clustering_data, scanpy.get.obs_df(input_adata, keys=gene_list, layer="Counts")], axis="columns", verify_integrity=True)
     print(clustering_data)
 
-    sample_list = sorted(set(clustering_data["sample"]))
+    sample_list = sorted(set(clustering_data[step00.sample_column]))
     sample_palette = dict(zip(sample_list, itertools.cycle(matplotlib.colors.TABLEAU_COLORS)))
     print("Sample:", len(sample_list), sample_list)
 
-    counter = collections.Counter(clustering_data[[step00.clustering_column, "sample"]].itertuples(index=False, name=None))
+    counter = collections.Counter(clustering_data[[step00.clustering_column, step00.sample_column]].itertuples(index=False, name=None))
     counter_data = pandas.DataFrame(index=sample_list, columns=cluster_list, dtype=int)
     for cluster, sample in tqdm.contrib.itertools.product(cluster_list, sample_list):
         counter_data.loc[sample, cluster] = counter[(cluster, sample)]
