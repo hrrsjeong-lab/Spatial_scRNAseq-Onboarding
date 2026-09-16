@@ -1,6 +1,5 @@
 import argparse
 import celltypist
-import numpy
 import pandas
 import scanpy
 import step00
