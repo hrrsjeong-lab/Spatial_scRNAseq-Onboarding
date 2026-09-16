@@ -23,14 +23,11 @@ if __name__ == "__main__":
     input_adata = scanpy.read_h5ad(args.input)
     print(input_adata)
 
-    rapids_singlecell.tl.rank_genes_groups(input_adata, groupby=step00.clustering_column, mask_var="highly_variable", method="wilcoxon", tie_correct=True, pts=True, use_continuity=True, layer=step00.log_column)
-    print(input_adata)
-
-    backup_x = input_adata.X.copy()
-    input_adata.X = input_adata.layers[step00.log_column]
+    rapids_singlecell.tl.rank_genes_groups(input_adata, groupby=step00.clustering_column, method="wilcoxon", use_raw=False, tie_correct=True, pts=True, mean_in_log_space=False, layer=step00.log_column)
     print(input_adata)
 
     model = celltypist.models.Model.load(args.model)
+    print(model)
     print("Cell types:", len(model.cell_types))
     print("Features:", len(model.features))
 
@@ -48,16 +45,15 @@ if __name__ == "__main__":
             continue
 
         input_adata.uns[step00.marker_column][step00.safe_celltype(cell_type)] = marker_gene_list
-        rapids_singlecell.tl.score_genes(input_adata, marker_gene_list, score_name=step00.safe_celltype(cell_type), layer=step00.log_column, use_raw=False, ctrl_as_ref=False)
+        rapids_singlecell.tl.score_genes(input_adata, marker_gene_list, score_name=step00.safe_celltype(cell_type), layer=step00.log_column, use_raw=False, ctrl_as_ref=False, random_state=42)
         marker_data[step00.safe_celltype(cell_type)] = input_adata.obs[step00.safe_celltype(cell_type)]
-        del input_adata.obs[step00.safe_celltype(cell_type)]
     input_adata.obsm[step00.marker_column] = marker_data
     print(input_adata)
 
-    predictions = celltypist.annotate(input_adata, model, majority_voting=True, over_clustering=step00.clustering_column, use_GPU=True)
-    input_adata.obs[step00.celltype_column] = predictions.predicted_labels.majority_voting
+    predictions = celltypist.annotate(scanpy.AnnData(X=input_adata.layers[step00.log_column].copy(), obs=input_adata.obs, var=input_adata.var), model, majority_voting=True, over_clustering=input_adata.obs[step00.clustering_column].astype(str).to_numpy(), use_GPU=True)
+    input_adata.obs[f"{step00.celltype_column}_raw"] = predictions.predicted_labels["predicted_labels"]
+    input_adata.obs[step00.celltype_column] = predictions.predicted_labels["majority_voting"]
     input_adata.obsm[step00.celltype_column] = predictions.probability_matrix
     input_adata.obsm[step00.celltype_column].columns = list(map(step00.safe_celltype, input_adata.obsm[step00.celltype_column]))
-    input_adata.X = backup_x
     print(input_adata)
     input_adata.write_h5ad(args.output, **step00.anndata_compressions)

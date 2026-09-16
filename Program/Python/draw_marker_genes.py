@@ -47,7 +47,7 @@ if __name__ == "__main__":
     expression_data = scanpy.get.obs_df(input_adata, keys=gene_list, layer="Counts")
     print(expression_data)
 
-    cell_type_list = sorted(set(input_adata.obs[step00.celltype_column]))
+    cell_type_list = sorted(set(input_adata.obs[step00.celltype_column]) & set(input_adata.uns[step00.marker_column].keys()))
     cell_type_palette = dict(zip(cell_type_list, itertools.cycle(matplotlib.colors.XKCD_COLORS)))
     print("Cell type:", len(cell_type_list))
 
