@@ -44,7 +44,7 @@ if __name__ == "__main__":
         print("vars:", adata.n_vars, adata.var_names)
         adatas.append(adata)
 
-    output_adata = anndata.concat(adatas, keys=input_data["ID"].astype(str), join="outer", merge="same", fill_value=False, index_unique="-", label="sample", pairwise=False)
+    output_adata = anndata.concat(adatas, keys=input_data["ID"].astype(str), join="outer", merge="same", fill_value=False, index_unique="-", label=step00.sample_column, pairwise=False)
 
     var_genes = output_adata.var_names.astype(str).str.upper()
     output_adata.var["mt"] = var_genes.str.startswith("MT-").astype("bool")
