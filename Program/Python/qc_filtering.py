@@ -41,19 +41,19 @@ if __name__ == "__main__":
     print(input_adata)
 
     cell_data = pandas.read_csv(args.cell, sep="\t", index_col=0)
-    cell_data = cell_data.loc[input_adata.var.index, :]
+    cell_data = cell_data.loc[input_adata.obs.index, :]
     print(cell_data)
 
     for cell_test in tqdm.tqdm(list(cell_data.columns)):
-        input_adata.var[cell_test] = cell_data[cell_test].to_numpy()
+        input_adata.obs[cell_test] = cell_data[cell_test].to_numpy()
     print(input_adata)
 
     gene_data = pandas.read_csv(args.gene, sep="\t", index_col=0)
-    gene_data = gene_data.loc[input_adata.obs.index, :]
+    gene_data = gene_data.loc[input_adata.var.index, :]
     print(gene_data)
 
     for gene_test in tqdm.tqdm(list(gene_data.columns)):
-        input_adata.obs[gene_test] = gene_data[gene_test].to_numpy()
+        input_adata.var[gene_test] = gene_data[gene_test].to_numpy()
     print(input_adata)
 
     input_adata.layers[step00.log_column] = input_adata.layers["Counts"].astype(float, copy=True)
