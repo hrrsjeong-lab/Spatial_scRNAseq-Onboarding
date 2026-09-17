@@ -35,6 +35,9 @@ clustering_column = "Clustering"
 celltype_column = "Celltype"
 marker_column = "Marker"
 spatial_columns = ("Xenium_x_centroid", "Xenium_y_centroid")
+spatial_key = "spatial"
+connectivity_key = f"{spatial_key}_connectivities"
+neighborhood_column = "Neighborhood"
 
 rest_value = "Rest"
 rest_color = "lightgray"
