@@ -51,7 +51,7 @@ if __name__ == "__main__":
     expression_data = scanpy.get.obs_df(input_adata, keys=gene_list, layer="Counts")
     print(expression_data)
 
-    cell_type_list = sorted(set(input_adata.obs[step00.celltype_column]))
+    cell_type_list = sorted(set(input_adata.obs[step00.celltype_column]) & set(input_adata.uns[step00.marker_column].keys()))
     cell_type_palette = dict(zip(cell_type_list, itertools.cycle(matplotlib.colors.XKCD_COLORS)))
     print("Cell type:", len(cell_type_list), cell_type_list)
 
@@ -193,9 +193,9 @@ if __name__ == "__main__":
         matplotlib.pyplot.legend(title=step00.celltype_column, loc="upper right", ncols=len(cluster_list) // 4)
         matplotlib.pyplot.tight_layout()
 
-        figure_list.append(f"{directory}/{step00.celltype_column}-{step00.clustering_column}-Proportion-Bar.pdf")
+        figure_list.append(f"{directory}/{step00.celltype_column}-{step00.clustering_column}-Count-Bar.pdf")
         fig.savefig(figure_list[-1])
-        figure_list.append(f"{directory}/{step00.celltype_column}-{step00.clustering_column}-Proportion-Bar.png")
+        figure_list.append(f"{directory}/{step00.celltype_column}-{step00.clustering_column}-Count-Bar.png")
         fig.savefig(figure_list[-1])
         matplotlib.pyplot.close(fig)
 
@@ -211,9 +211,9 @@ if __name__ == "__main__":
         matplotlib.pyplot.legend(title=step00.clustering_column, loc="upper right", ncols=len(cluster_list) // 4)
         matplotlib.pyplot.tight_layout()
 
-        figure_list.append(f"{directory}/{step00.celltype_column}-{step00.clustering_column}-Count-Bar.pdf")
+        figure_list.append(f"{directory}/{step00.celltype_column}-{step00.clustering_column}-Proportion-Bar.pdf")
         fig.savefig(figure_list[-1])
-        figure_list.append(f"{directory}/{step00.celltype_column}-{step00.clustering_column}-Count-Bar.png")
+        figure_list.append(f"{directory}/{step00.celltype_column}-{step00.clustering_column}-Proportion-Bar.png")
         fig.savefig(figure_list[-1])
         matplotlib.pyplot.close(fig)
 
@@ -229,9 +229,9 @@ if __name__ == "__main__":
         matplotlib.pyplot.legend(title=step00.celltype_column, loc="upper right", ncols=len(cell_type_list) // 4)
         matplotlib.pyplot.tight_layout()
 
-        figure_list.append(f"{directory}/{step00.clustering_column}-{step00.celltype_column}-Proportion-Bar.pdf")
+        figure_list.append(f"{directory}/{step00.clustering_column}-{step00.celltype_column}-Count-Bar.pdf")
         fig.savefig(figure_list[-1])
-        figure_list.append(f"{directory}/{step00.clustering_column}-{step00.celltype_column}-Proportion-Bar.png")
+        figure_list.append(f"{directory}/{step00.clustering_column}-{step00.celltype_column}-Count-Bar.png")
         fig.savefig(figure_list[-1])
         matplotlib.pyplot.close(fig)
 
@@ -247,27 +247,9 @@ if __name__ == "__main__":
         matplotlib.pyplot.legend(title=step00.celltype_column, loc="upper right", ncols=len(cell_type_list) // 4)
         matplotlib.pyplot.tight_layout()
 
-        figure_list.append(f"{directory}/{step00.clustering_column}-{step00.celltype_column}-Count-Bar.pdf")
+        figure_list.append(f"{directory}/{step00.clustering_column}-{step00.celltype_column}-Proportion-Bar.pdf")
         fig.savefig(figure_list[-1])
-        figure_list.append(f"{directory}/{step00.clustering_column}-{step00.celltype_column}-Count-Bar.png")
-        fig.savefig(figure_list[-1])
-        matplotlib.pyplot.close(fig)
-
-        fig, ax = matplotlib.pyplot.subplots(figsize=(24, 18))
-
-        for i, cell_type in tqdm.contrib.tenumerate(cell_type_list):
-            matplotlib.pyplot.bar(range(len(sample_list)), sample_counter_data.iloc[:, i], bottom=sample_counter_data.iloc[:, :i].sum(axis="columns"), color=cell_type_palette[cell_type], label=cell_type, linewidth=0, edgecolor=None)
-
-        matplotlib.pyplot.xlabel(step00.sample_column)
-        matplotlib.pyplot.ylabel("Cell proportion")
-        matplotlib.pyplot.xticks(range(len(sample_list)), sample_list, fontsize="xx-small", rotation="vertical")
-        matplotlib.pyplot.yticks(fontsize="xx-small")
-        matplotlib.pyplot.legend(title=step00.celltype_column, loc="upper right", ncols=len(cell_type_list) // 4)
-        matplotlib.pyplot.tight_layout()
-
-        figure_list.append(f"{directory}/{step00.sample_column}-{step00.celltype_column}-Count-Bar.pdf")
-        fig.savefig(figure_list[-1])
-        figure_list.append(f"{directory}/{step00.sample_column}-{step00.celltype_column}-Count-Bar.png")
+        figure_list.append(f"{directory}/{step00.clustering_column}-{step00.celltype_column}-Proportion-Bar.png")
         fig.savefig(figure_list[-1])
         matplotlib.pyplot.close(fig)
 
@@ -277,7 +259,7 @@ if __name__ == "__main__":
             matplotlib.pyplot.bar(range(len(sample_list)), sample_counter_data.iloc[:, i], bottom=sample_counter_data.iloc[:, :i].sum(axis="columns"), color=cell_type_palette[cell_type], label=cell_type, linewidth=0, edgecolor=None)
 
         matplotlib.pyplot.xlabel(step00.sample_column)
-        matplotlib.pyplot.ylabel("Cell proportion")
+        matplotlib.pyplot.ylabel("Cell count")
         matplotlib.pyplot.xticks(range(len(sample_list)), sample_list, fontsize="xx-small", rotation="vertical")
         matplotlib.pyplot.yticks(fontsize="xx-small")
         matplotlib.pyplot.legend(title=step00.celltype_column, loc="upper right", ncols=len(cell_type_list) // 4)

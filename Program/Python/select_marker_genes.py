@@ -32,7 +32,7 @@ if __name__ == "__main__":
     print("Features:", len(model.features))
 
     cell_type_list = sorted(model.cell_types)
-    gene_list = list(input_adata.var.index)
+    gene_list = sorted(input_adata.var.index)
     print("Gene:", len(gene_list))
 
     marker_data = pandas.DataFrame(index=input_adata.obs.index)
@@ -48,12 +48,12 @@ if __name__ == "__main__":
         rapids_singlecell.tl.score_genes(input_adata, marker_gene_list, score_name=step00.safe_celltype(cell_type), layer=step00.log_column, use_raw=False, ctrl_as_ref=False, random_state=42)
         marker_data[step00.safe_celltype(cell_type)] = input_adata.obs[step00.safe_celltype(cell_type)]
     input_adata.obsm[step00.marker_column] = marker_data
-    print(input_adata)
+    print(input_adata.obsm[step00.marker_column])
 
     predictions = celltypist.annotate(scanpy.AnnData(X=input_adata.layers[step00.log_column].copy(), obs=input_adata.obs, var=input_adata.var), model, majority_voting=True, over_clustering=input_adata.obs[step00.clustering_column].astype(str).to_numpy(), use_GPU=True)
     input_adata.obs[f"{step00.celltype_column}_raw"] = predictions.predicted_labels["predicted_labels"]
-    input_adata.obs[step00.celltype_column] = predictions.predicted_labels["majority_voting"]
+    input_adata.obs[step00.celltype_column] = list(map(step00.safe_celltype, predictions.predicted_labels["majority_voting"]))
     input_adata.obsm[step00.celltype_column] = predictions.probability_matrix
-    input_adata.obsm[step00.celltype_column].columns = list(map(step00.safe_celltype, input_adata.obsm[step00.celltype_column]))
-    print(input_adata)
+    input_adata.obsm[step00.celltype_column].columns = list(map(step00.safe_celltype, input_adata.obsm[step00.celltype_column].columns))
+    print(input_adata.obsm[step00.celltype_column])
     input_adata.write_h5ad(args.output, **step00.anndata_compressions)
