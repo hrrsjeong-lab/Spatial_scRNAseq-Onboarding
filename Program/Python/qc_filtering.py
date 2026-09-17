@@ -9,22 +9,18 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("input", help="Input HDF5 file", type=str)
-    parser.add_argument("gene", help="Gene QC TSV(.gz) file", type=str)
     parser.add_argument("cell", help="Gene QC TSV(.gz) file", type=str)
+    parser.add_argument("gene", help="Gene QC TSV(.gz) file", type=str)
     parser.add_argument("output", help="Output HDF5 file", type=str)
     parser.add_argument("--cpus", help="Number of CPUs to use", type=int, default=1)
-    parser.add_argument("--percentile", help="Percentile threshold", type=int, default=5)
 
     args = parser.parse_args()
 
     step00.check_suffix(args.input, {".hdf5", ".h5"})
-    step00.check_suffix(args.gene, {".tsv", ".tsv.gz"})
     step00.check_suffix(args.cell, {".tsv", ".tsv.gz"})
+    step00.check_suffix(args.gene, {".tsv", ".tsv.gz"})
     step00.check_suffix(args.output, {".hdf5", ".h5"})
     step00.check_cpus(args.cpus)
-
-    if not (0 < args.percentile < 50):
-        raise ValueError("Percentile must be (0, 50)!!")
 
     scanpy.settings.n_jobs = args.cpus
 
@@ -35,10 +31,13 @@ if __name__ == "__main__":
     print(input_adata)
 
     rapids_singlecell.get.anndata_to_GPU(input_adata)
-    rapids_singlecell.pp.filter_cells(input_adata, min_genes=300)
+    rapids_singlecell.pp.filter_cells(input_adata, min_counts=10)
     print(input_adata)
 
-    rapids_singlecell.pp.filter_genes(input_adata, min_cells=50)
+    rapids_singlecell.pp.filter_cells(input_adata, min_genes=5)
+    print(input_adata)
+
+    rapids_singlecell.pp.filter_genes(input_adata, min_cells=5)
     print(input_adata)
 
     cell_data = pandas.read_csv(args.cell, sep="\t", index_col=0)
