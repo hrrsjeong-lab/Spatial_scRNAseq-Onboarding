@@ -53,10 +53,9 @@ if __name__ == "__main__":
             step00.confidence_ellipse(coordinate_data.loc[(coordinate_data[step00.sample_column] == sample), step00.spatial_columns[0]], coordinate_data.loc[(coordinate_data[step00.sample_column] == sample), step00.spatial_columns[1]], ax=ax, edgecolor="black", linewidth=2.5)
             matplotlib.pyplot.text(numpy.mean(coordinate_data.loc[(coordinate_data[step00.sample_column] == sample), step00.spatial_columns[0]]), numpy.mean(coordinate_data.loc[(coordinate_data[step00.sample_column] == sample), step00.spatial_columns[0]]), sample, horizontalalignment="center", verticalalignment="center", fontsize="small", color="black", path_effects=step00.path_effects)
 
-        ax.set_xticklabels([])
-        ax.set_yticklabels([])
-        matplotlib.pyplot.xlabel("X (μm)")
-        matplotlib.pyplot.ylabel("Y (μm)")
+        matplotlib.pyplot.xlabel(f"{step00.spatial_columns[0]} (μm)")
+        matplotlib.pyplot.ylabel(f"{step00.spatial_columns[1]} (μm)")
+        matplotlib.pyplot.title(f"Total (Cell n={len(drawing_data)})")
         matplotlib.pyplot.legend(loc="upper right")
         matplotlib.pyplot.tight_layout()
 
@@ -77,11 +76,9 @@ if __name__ == "__main__":
                 step00.confidence_ellipse(drawing_data.loc[(drawing_data[step00.celltype_column] == cell_type), step00.spatial_columns[0]], drawing_data.loc[(drawing_data[step00.celltype_column] == cell_type), step00.spatial_columns[1]], ax=ax, edgecolor="black", linewidth=2.5)
                 matplotlib.pyplot.text(numpy.mean(drawing_data.loc[(drawing_data[step00.celltype_column] == cell_type), step00.spatial_columns[0]]), numpy.mean(drawing_data.loc[(drawing_data[step00.celltype_column] == cell_type), step00.spatial_columns[1]]), cell_type, horizontalalignment="center", verticalalignment="center", fontsize="small", color="black", path_effects=step00.path_effects)
 
-            ax.set_xticklabels([])
-            ax.set_yticklabels([])
-            matplotlib.pyplot.xlabel("X (μm)")
-            matplotlib.pyplot.ylabel("Y (μm)")
-            matplotlib.pyplot.title(sample)
+            matplotlib.pyplot.xlabel(f"{step00.spatial_columns[0]} (μm)")
+            matplotlib.pyplot.ylabel(f"{step00.spatial_columns[1]} (μm)")
+            matplotlib.pyplot.title(f"{sample} (Cell n={len(drawing_data)})")
             matplotlib.pyplot.legend(loc="upper right")
             matplotlib.pyplot.tight_layout()
 
