@@ -5,7 +5,7 @@ MEMS = 100
 MEM_PER_CPU = $(shell echo '$(MEMS)/$(CPUS)' | bc)
 
 # Programs
-SLURM = srun --chdir=$(abspath .) --cpus-per-task=$(CPUS) --export=ALL --job-name="scRNA_$(@F)" --mem=$(MEMS)G --mail-user="jaewoong@gist.ac.kr" --mail-type=ALL
+SLURM = srun --chdir=$(abspath .) --cpus-per-task=$(CPUS) --export=ALL --job-name="scRNA_$(@F)" --mem=$(MEMS)G --mail-user="jaewoong@gist.ac.kr" --mail-type=FAIL
 GPUS = --gpus=1
 PYTHON = /home/Live/jaewoong/Spatial_scRNAseq-Onboarding/.venv/bin/python3 -B
 rwildcard = $(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(subst *,%,$2),$d))
@@ -15,7 +15,7 @@ product = $(foreach x,$1,$(addprefix $x.,$2))
 HUMAN_FASTA = /home/Share/References/chm13/chm13v2.0.maskedY.fasta
 MATRIX_XLSX = Metadata/GSE311609_series_matrix.xlsx
 CANCERS = Test Lung_5K# Lung Breast
-DEGS = 01_Seurat 02_Cell_ranger# 03_Seurat_v3
+DEGS = 01_Seurat 02_Cell_ranger
 PROJECTIONS = 01_umap 02_tsne 03_phate 04_trimap
 CLUSTERINGS = 01_Leiden 02_Louvain
 CELLTYPES = 01_Human_Lung_Atlas 02_Cells_Lung_Airway 03_Immune_All_High 04_Immune_All_Low 05_Bilous2026_Lung5K_Level2
@@ -185,8 +185,8 @@ Output/08_Marker_genes/References/04_Immune_All_Low.pkl: | Output/08_Marker_gene
 Output/08_Marker_genes/References/Bilous2026_Lung5K_Level2.h5ad: | Output/08_Marker_genes/References
 	wget "https://datasets.cellxgene.cziscience.com/4ca422ae-e4ad-4884-9073-7c3799cd9143.h5ad" -o $(abspath $@) $(LOGGING)
 
-Output/08_Marker_genes/References/05_Bilous2026_Lung5K_Level2.pkl: Python/train_celltype_reference.py Output/08_Marker_genes/References/Bilous2026_Lung5K_Level2.h5ad
-	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) $(LOGGING)
+Output/08_Marker_genes/References/05_Bilous2026_Lung5K_Level2.pkl: Python/train_celltype_reference.py Output/08_Marker_genes/References/Bilous2026_Lung5K_Level2.h5ad Output/07_Clustering/Lung_5K.01_Seurat.01_umap.01_Leiden.hdf5
+	$(SLURM) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) $(LOGGING)
 
 Output/08_Marker_genes/%.01_Human_Lung_Atlas.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/01_Human_Lung_Atlas.pkl
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
@@ -216,9 +216,27 @@ Output/09_Xenium/Figures:
 	mkdir -p $@
 
 Output/09_Xenium/Figures/%.zip: Python/draw_xenium_coordinates.py Output/08_Marker_genes/%.hdf5 | Output/09_Xenium/Figures
-	$(PYTHON) $(abspath $^ $@) $(LOGGING)
+	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 step09-test: Output/09_Xenium/Figures/Test.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.zip
 step09-optimal: Output/09_Xenium/Figures/Lung_5K.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.zip
 step09: $(addprefix Output/09_Xenium/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES)))))))
 .PHONY: step09-test step09-optimal step09
+
+# Step 10 (Neighborhood enrichment)
+Output/10_Neighborhood:
+	mkdir -p $@
+
+Output/10_Neighborhood/Figures:
+	mkdir -p $@
+
+Output/10_Neighborhood/%.hdf5: Python/calculate_nhood_enrichment.py Output/08_Marker_genes/%.hdf5 | Output/10_Neighborhood
+	$(SLURM) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) --min-cells 20 --perms 1000 $(LOGGING)
+
+Output/10_Neighborhood/Figures/%.zip: Python/draw_nhood_enrichment.py Output/10_Neighborhood/%.hdf5 | Output/10_Neighborhood/Figures
+	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
+
+step10-test: Output/10_Neighborhood/Test.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.hdf5 Output/10_Neighborhood/Figures/Test.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.zip
+step10-optimal: Output/10_Neighborhood/Figures/Lung_5K.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.zip
+step10: $(addprefix Output/10_Neighborhood/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES)))))))
+.PHONY: step10-test step10-optimal step10
