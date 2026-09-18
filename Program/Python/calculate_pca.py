@@ -20,7 +20,7 @@ if __name__ == "__main__":
     rapids_singlecell.pp.pca(input_adata, layer=step00.log_column, svd_solver="covariance_eigh", random_state=42, key_added=step00.pca_key)
     print(input_adata)
 
-    rapids_singlecell.pp.harmony_integrate(input_adata, key=step00.sample_column, basis=step00.pca_key, adjusted_basis=step00.harmony_key, correction_methods="batched", random_state=42)
+    rapids_singlecell.pp.harmony_integrate(input_adata, key=step00.sample_column, basis=step00.pca_key, adjusted_basis=step00.harmony_key, correction_method="batched", random_state=42)
     print(input_adata)
 
     rapids_singlecell.pp.neighbors(input_adata, n_pcs=10, algorithm="ivfpq", random_state=42)
