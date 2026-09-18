@@ -55,7 +55,7 @@ if __name__ == "__main__":
 
         matplotlib.pyplot.xlabel(f"{step00.spatial_columns[0]} (μm)")
         matplotlib.pyplot.ylabel(f"{step00.spatial_columns[1]} (μm)")
-        matplotlib.pyplot.title(f"Total (Cell n={len(drawing_data)})")
+        matplotlib.pyplot.title(f"Total (Cell n={len(coordinate_data)})")
         matplotlib.pyplot.legend(loc="upper right")
         matplotlib.pyplot.tight_layout()
 
