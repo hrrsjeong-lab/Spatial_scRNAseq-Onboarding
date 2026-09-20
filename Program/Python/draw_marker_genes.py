@@ -190,7 +190,7 @@ if __name__ == "__main__":
         matplotlib.pyplot.ylabel("Cell count")
         matplotlib.pyplot.xticks(range(len(cell_type_list)), cell_type_list, fontsize="xx-small", rotation="vertical")
         matplotlib.pyplot.yticks(fontsize="xx-small")
-        matplotlib.pyplot.legend(title=step00.celltype_column, loc="upper right", ncols=len(cluster_list) // 4)
+        matplotlib.pyplot.legend(title=step00.celltype_column, loc="upper right", ncols=len(cluster_list) // 4 + 1)
         matplotlib.pyplot.tight_layout()
 
         figure_list.append(f"{directory}/{step00.celltype_column}-{step00.clustering_column}-Count-Bar.pdf")
@@ -208,7 +208,7 @@ if __name__ == "__main__":
         matplotlib.pyplot.ylabel("Cell proportion")
         matplotlib.pyplot.xticks(range(len(cell_type_list)), cell_type_list, fontsize="xx-small", rotation="vertical")
         matplotlib.pyplot.yticks(fontsize="xx-small")
-        matplotlib.pyplot.legend(title=step00.clustering_column, loc="upper right", ncols=len(cluster_list) // 4)
+        matplotlib.pyplot.legend(title=step00.clustering_column, loc="upper right", ncols=len(cluster_list) // 4 + 1)
         matplotlib.pyplot.tight_layout()
 
         figure_list.append(f"{directory}/{step00.celltype_column}-{step00.clustering_column}-Proportion-Bar.pdf")
@@ -226,7 +226,7 @@ if __name__ == "__main__":
         matplotlib.pyplot.ylabel("Cell count")
         matplotlib.pyplot.xticks(range(len(cluster_list)), cluster_list, fontsize="xx-small", rotation="vertical")
         matplotlib.pyplot.yticks(fontsize="xx-small")
-        matplotlib.pyplot.legend(title=step00.celltype_column, loc="upper right", ncols=len(cell_type_list) // 4)
+        matplotlib.pyplot.legend(title=step00.celltype_column, loc="upper right", ncols=len(cell_type_list) // 4 + 1)
         matplotlib.pyplot.tight_layout()
 
         figure_list.append(f"{directory}/{step00.clustering_column}-{step00.celltype_column}-Count-Bar.pdf")
@@ -244,7 +244,7 @@ if __name__ == "__main__":
         matplotlib.pyplot.ylabel("Cell proportion")
         matplotlib.pyplot.xticks(range(len(cluster_list)), cluster_list, fontsize="xx-small", rotation="vertical")
         matplotlib.pyplot.yticks(fontsize="xx-small")
-        matplotlib.pyplot.legend(title=step00.celltype_column, loc="upper right", ncols=len(cell_type_list) // 4)
+        matplotlib.pyplot.legend(title=step00.celltype_column, loc="upper right", ncols=len(cell_type_list) // 4 + 1)
         matplotlib.pyplot.tight_layout()
 
         figure_list.append(f"{directory}/{step00.clustering_column}-{step00.celltype_column}-Proportion-Bar.pdf")
@@ -262,7 +262,7 @@ if __name__ == "__main__":
         matplotlib.pyplot.ylabel("Cell count")
         matplotlib.pyplot.xticks(range(len(sample_list)), sample_list, fontsize="xx-small", rotation="vertical")
         matplotlib.pyplot.yticks(fontsize="xx-small")
-        matplotlib.pyplot.legend(title=step00.celltype_column, loc="upper right", ncols=len(cell_type_list) // 4)
+        matplotlib.pyplot.legend(title=step00.celltype_column, loc="upper right", ncols=len(cell_type_list) // 4 + 1)
         matplotlib.pyplot.tight_layout()
 
         figure_list.append(f"{directory}/{step00.sample_column}-{step00.celltype_column}-Count-Bar.pdf")
@@ -280,7 +280,7 @@ if __name__ == "__main__":
         matplotlib.pyplot.ylabel("Cell proportion")
         matplotlib.pyplot.xticks(range(len(sample_list)), sample_list, fontsize="xx-small", rotation="vertical")
         matplotlib.pyplot.yticks(fontsize="xx-small")
-        matplotlib.pyplot.legend(title=step00.celltype_column, loc="upper right", ncols=len(cell_type_list) // 4)
+        matplotlib.pyplot.legend(title=step00.celltype_column, loc="upper right", ncols=len(cell_type_list) // 4 + 1)
         matplotlib.pyplot.tight_layout()
 
         figure_list.append(f"{directory}/{step00.sample_column}-{step00.celltype_column}-Proportion-Bar.pdf")
