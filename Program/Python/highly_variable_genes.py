@@ -1,5 +1,6 @@
 import argparse
 import scanpy
+import rapids_singlecell
 import step00
 
 if __name__ == "__main__":
@@ -19,14 +20,13 @@ if __name__ == "__main__":
     input_adata.layers["Counts"] = step00.safe_matrix(input_adata.layers["Counts"])
     print(input_adata)
 
-    scanpy.pp.highly_variable_genes(input_adata, flavor=args.flavor, layer=step00.log_column)
+    rapids_singlecell.get.anndata_to_GPU(input_adata, layer=step00.log_column)
+    rapids_singlecell.pp.highly_variable_genes(input_adata, flavor=args.flavor, layer=step00.log_column)
     print(input_adata)
 
-    scanpy.pp.scrublet(input_adata)
+    rapids_singlecell.get.anndata_to_GPU(input_adata)
+    rapids_singlecell.pp.scrublet(input_adata, batch_key=step00.sample_column)
     if "predicted_doublet" in input_adata.obs.columns:
         input_adata.obs["predicted_doublet"] = (input_adata.obs["predicted_doublet"].astype("object").apply(lambda x: "" if (x is None) or (isinstance(x, float) and pandas.isna(x)) else str(x)))
-    print(input_adata)
-
-    scanpy.pp.scale(input_adata, zero_center=True)
     print(input_adata)
     input_adata.write_h5ad(args.output, **step00.anndata_compressions)
