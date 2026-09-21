@@ -90,10 +90,10 @@ Output/04_Highly_variable_genes/Figures:
 	mkdir -p $@
 
 Output/04_Highly_variable_genes/%.01_Seurat.hdf5: Python/highly_variable_genes.py Output/03_QC_filtering/%.hdf5 | Output/04_Highly_variable_genes
-	$(SLURM) $(PYTHON) $(abspath $^ $@) --flavor "seurat" $(LOGGING)
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --flavor "seurat" $(LOGGING)
 
 Output/04_Highly_variable_genes/%.02_Cell_ranger.hdf5: Python/highly_variable_genes.py Output/03_QC_filtering/%.hdf5 | Output/04_Highly_variable_genes
-	$(SLURM) $(PYTHON) $(abspath $^ $@) --flavor "cell_ranger" $(LOGGING)
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --flavor "cell_ranger" $(LOGGING)
 
 Output/04_Highly_variable_genes/Figures/%.zip: Python/draw_variable_genes.py Output/04_Highly_variable_genes/%.hdf5 | Output/04_Highly_variable_genes/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
@@ -237,6 +237,6 @@ Output/10_Neighborhood/Figures/%.zip: Python/draw_nhood_enrichment.py Output/10_
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 step10-test: Output/10_Neighborhood/Test.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.hdf5 Output/10_Neighborhood/Figures/Test.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.zip
-step10-optimal: Output/10_Neighborhood/Figures/Lung_5K.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.zip
+step10-optimal: Output/10_Neighborhood/Lung_5K.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.hdf5 Output/10_Neighborhood/Figures/Lung_5K.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.zip
 step10: $(addprefix Output/10_Neighborhood/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES)))))))
 .PHONY: step10-test step10-optimal step10
