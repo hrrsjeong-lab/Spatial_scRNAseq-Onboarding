@@ -25,16 +25,16 @@ LOGGING = 1>$(abspath $@).log 2>&1
 LOGGING_DIR = 1>$(abspath $(@D)).log 2>&1
 LOGGING_TEE = 2>&1 | tee $(abspath $@).log
 
-all: test optimal step01 step02 step03 step04 step05 step06 step07 step08 step09
+all: test optimal step01 step02 step03 step04 step05 step06 step07 step08 step09 step10
 .PHONY: all
 
 clean:
 .PHONY: clean
 
-optimal: step01-optimal step02-optimal step03-optimal step04-optimal step05-optimal step06-optimal step07-optimal step08-optimal step09-optimal
+optimal: step01-optimal step02-optimal step03-optimal step04-optimal step05-optimal step06-optimal step07-optimal step08-optimal step09-optimal step10-optimal
 .PHONY: optimal
 
-test: step01-test step02-test step03-test step04-test step05-test step06-test step07-test step08-test step09-test
+test: step01-test step02-test step03-test step04-test step05-test step06-test step07-test step08-test step09-test step10-test
 .PHONY: test
 
 # Step 01 (Merge input)
@@ -238,5 +238,5 @@ Output/10_Neighborhood/Figures/%.zip: Python/draw_nhood_enrichment.py Output/10_
 
 step10-test: Output/10_Neighborhood/Test.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.hdf5 Output/10_Neighborhood/Figures/Test.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.zip
 step10-optimal: Output/10_Neighborhood/Lung_5K.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.hdf5 Output/10_Neighborhood/Figures/Lung_5K.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.zip
-step10: $(addprefix Output/10_Neighborhood/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES)))))))
+step10: $(addprefix Output/10_Neighborhood/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES))))))) $(addprefix Output/10_Neighborhood/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES)))))))
 .PHONY: step10-test step10-optimal step10
