@@ -1,5 +1,7 @@
 import argparse
+import numpy
 import scanpy
+import trimap
 import step00
 
 if __name__ == "__main__":
@@ -20,8 +22,10 @@ if __name__ == "__main__":
     input_adata = scanpy.read_h5ad(args.input)
     print(input_adata)
 
-    scanpy.external.tl.trimap(input_adata)
-    input_adata.obsm[step00.projection_key] = input_adata.obsm["X_trimap"]
-    del input_adata.obsm["X_trimap"]
+    projection_input = numpy.ascontiguousarray(input_adata.obsm[step00.harmony_key], dtype=numpy.float32)
+    print("TriMap input:", projection_input.shape, projection_input.dtype)
+
+    trimap_operator = trimap.TRIMAP(n_dims=2, n_inliers=10, n_outliers=5, n_random=5, distance="euclidean", n_iters=400, apply_pca=False, verbose=True)
+    input_adata.obsm[step00.projection_key] = trimap_operator.fit_transform(projection_input)
     print(input_adata)
     input_adata.write_h5ad(args.output, **step00.anndata_compressions)
