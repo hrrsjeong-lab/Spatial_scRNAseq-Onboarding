@@ -39,7 +39,7 @@ if __name__ == "__main__":
     input_adata.uns[step00.marker_column] = dict()
 
     for cell_type in tqdm.tqdm(cell_type_list):
-        marker_gene_list = sorted(set(model.extract_top_markers(cell_type, top_n=50)) & set(gene_list))
+        marker_gene_list = sorted(set(model.extract_top_markers(cell_type, top_n=10)) & set(gene_list))
 
         if not marker_gene_list:
             continue
@@ -50,7 +50,7 @@ if __name__ == "__main__":
     input_adata.obsm[step00.marker_column] = marker_data
     print(input_adata.obsm[step00.marker_column])
 
-    predictions = celltypist.annotate(scanpy.AnnData(X=input_adata.layers[step00.log_column].copy(), obs=input_adata.obs, var=input_adata.var), model, majority_voting=True, over_clustering=input_adata.obs[step00.clustering_column].astype(str).to_numpy(), use_GPU=True)
+    predictions = celltypist.annotate(scanpy.AnnData(X=input_adata.layers[step00.log_column].copy(), obs=input_adata.obs, var=input_adata.var), model, majority_voting=True,  use_GPU=True, min_prop=0.5)
     input_adata.obs[f"{step00.celltype_column}_raw"] = predictions.predicted_labels["predicted_labels"]
     input_adata.obs[step00.celltype_column] = list(map(step00.safe_celltype, predictions.predicted_labels["majority_voting"]))
     input_adata.obsm[step00.celltype_column] = predictions.probability_matrix

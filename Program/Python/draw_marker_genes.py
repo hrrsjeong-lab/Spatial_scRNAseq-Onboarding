@@ -48,9 +48,6 @@ if __name__ == "__main__":
     gene_list = sorted(set().union(*input_adata.uns[step00.marker_column].values()))
     print("Gene:", len(gene_list))
 
-    expression_data = scanpy.get.obs_df(input_adata, keys=gene_list, layer="Counts")
-    print(expression_data)
-
     cell_type_list = sorted(set(input_adata.obs[step00.celltype_column]) & set(input_adata.uns[step00.marker_column].keys()))
     cell_type_palette = dict(zip(cell_type_list, itertools.cycle(matplotlib.colors.XKCD_COLORS)))
     print("Cell type:", len(cell_type_list), cell_type_list)
@@ -65,12 +62,14 @@ if __name__ == "__main__":
     cluster_score_data = cluster_score_data.fillna(0.0)
     print(cluster_score_data)
 
-    cell_marker_data = pandas.concat({cell_type: numpy.log1p(expression_data.loc[:, (input_adata.uns[step00.marker_column][cell_type])].sum(axis="columns")) for cell_type in cell_type_list}, axis="columns", verify_integrity=True)
-    cell_marker_data[step00.celltype_column] = list(map(lambda x: cell_type_list[numpy.argmax(cell_marker_data.loc[x, :])], list(cell_marker_data.index)))
-    print(cell_marker_data)
+    marker_score_data = input_adata.obsm[step00.marker_column].loc[:, cell_type_list].copy()
+    marker_score_data[f"{step00.marker_column}_argmax"] = marker_score_data.idxmax(axis="columns")
+    print(marker_score_data)
 
-    clustering_data = pandas.concat([clustering_data, cell_marker_data], axis="columns", verify_integrity=True)
+    clustering_data[step00.celltype_column] = input_adata.obs[step00.celltype_column]
+    clustering_data = pandas.concat([clustering_data, marker_score_data], axis="columns", verify_integrity=True)
     print(clustering_data)
+    print(pandas.crosstab(clustering_data[step00.celltype_column], clustering_data[f"{step00.marker_column}_argmax"]))
 
     counter = collections.Counter(clustering_data[[step00.clustering_column, step00.celltype_column]].itertuples(index=False, name=None))
     cluster_counter_data = pandas.DataFrame(index=cluster_list, columns=cell_type_list, dtype=int)
@@ -146,14 +145,14 @@ if __name__ == "__main__":
 
             fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
 
-            seaborn.scatterplot(data=clustering_data.sort_values(cell_type), x=step00.projection_columns[0], y=step00.projection_columns[1], hue=cell_type, palette="Reds", legend="brief", rasterized=True, s=30, edgecolor=None, ax=ax)
+            seaborn.scatterplot(data=clustering_data.sort_values(cell_type), x=step00.projection_columns[0], y=step00.projection_columns[1], hue=cell_type, palette="Reds", legend="brief", rasterized=True, s=5, edgecolor=None, ax=ax)
             step00.confidence_ellipse(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[0]], clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[1]], ax=ax, edgecolor="black", linewidth=2.5)
             matplotlib.pyplot.text(numpy.mean(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[0]]), numpy.mean(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[1]]), cluster, horizontalalignment="center", verticalalignment="center", fontsize="medium", color="black", path_effects=step00.path_effects)
 
             ax.set_xticklabels([])
             ax.set_yticklabels([])
             matplotlib.pyplot.title(f"{cell_type} (Gene n={len(input_adata.uns[step00.marker_column][cell_type])})", fontsize="small")
-            matplotlib.pyplot.legend(loc="lower left", title="")
+            matplotlib.pyplot.legend(loc="lower left", title="", markerscale=10)
             matplotlib.pyplot.tight_layout()
 
             figure_list.append(f"{directory}/Cluster-{cluster}.pdf")
@@ -164,7 +163,26 @@ if __name__ == "__main__":
 
         fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
 
-        seaborn.scatterplot(data=clustering_data, x=step00.projection_columns[0], y=step00.projection_columns[1], hue=step00.celltype_column, hue_order=cell_type_list, palette=cell_type_palette, rasterized=True, s=30, edgecolor=None, ax=ax)
+        seaborn.scatterplot(data=clustering_data, x=step00.projection_columns[0], y=step00.projection_columns[1], hue=step00.celltype_column, hue_order=cell_type_list, palette=cell_type_palette, rasterized=True, s=5, edgecolor=None, ax=ax)
+
+        for cell_type in tqdm.tqdm(cell_type_list):
+            step00.confidence_ellipse(clustering_data.loc[(clustering_data[step00.celltype_column] == cell_type), step00.projection_columns[0]], clustering_data.loc[(clustering_data[step00.celltype_column] == cell_type), step00.projection_columns[1]], ax=ax, edgecolor="black", linewidth=2.5)
+            matplotlib.pyplot.text(numpy.mean(clustering_data.loc[(clustering_data[step00.celltype_column] == cell_type), step00.projection_columns[0]]), numpy.mean(clustering_data.loc[(clustering_data[step00.celltype_column] == cell_type), step00.projection_columns[1]]), cell_type, horizontalalignment="center", verticalalignment="center", fontsize="x-small", color="black", path_effects=step00.path_effects)
+
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        matplotlib.pyplot.legend(loc="lower left", title=step00.celltype_column, title_fontsize="xx-small", markerscale=10)
+        matplotlib.pyplot.tight_layout()
+
+        figure_list.append(f"{directory}/Scatter-{step00.celltype_column}.pdf")
+        fig.savefig(figure_list[-1])
+        figure_list.append(f"{directory}/Scatter-{step00.celltype_column}.png")
+        fig.savefig(figure_list[-1])
+        matplotlib.pyplot.close(fig)
+
+        fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
+
+        seaborn.scatterplot(data=clustering_data, x=step00.projection_columns[0], y=step00.projection_columns[1], hue=step00.celltype_column, hue_order=cell_type_list, palette=cell_type_palette, rasterized=True, s=5, edgecolor=None, ax=ax)
 
         for cluster in tqdm.tqdm(cluster_list):
             step00.confidence_ellipse(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[0]], clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[1]], ax=ax, edgecolor="black", linewidth=2.5)
@@ -172,12 +190,12 @@ if __name__ == "__main__":
 
         ax.set_xticklabels([])
         ax.set_yticklabels([])
-        matplotlib.pyplot.legend(loc="lower left", title=step00.celltype_column, title_fontsize="xx-small")
+        matplotlib.pyplot.legend(loc="lower left", title=step00.celltype_column, title_fontsize="xx-small", markerscale=10)
         matplotlib.pyplot.tight_layout()
 
-        figure_list.append(f"{directory}/Scatter-{step00.celltype_column}.pdf")
+        figure_list.append(f"{directory}/Scatter-{step00.clustering_column}.pdf")
         fig.savefig(figure_list[-1])
-        figure_list.append(f"{directory}/Scatter-{step00.celltype_column}.png")
+        figure_list.append(f"{directory}/Scatter-{step00.clustering_column}.png")
         fig.savefig(figure_list[-1])
         matplotlib.pyplot.close(fig)
 
