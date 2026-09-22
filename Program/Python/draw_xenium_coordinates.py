@@ -147,7 +147,7 @@ if __name__ == "__main__":
 
         matplotlib.pyplot.xlabel("Cell type")
         matplotlib.pyplot.ylabel("log Local density (cells/mm²)")
-        matplotlib.pyplot.xticks(rotation="vertical")
+        matplotlib.pyplot.xticks(rotation="vertical")
         matplotlib.pyplot.tight_layout()
 
         figure_list.append(f"{directory}/Density-Violin.pdf")
