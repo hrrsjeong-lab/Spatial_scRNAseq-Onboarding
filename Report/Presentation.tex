@@ -237,7 +237,7 @@
 
     \subsection{Highly variable genes}
     \begin{frame}[allowframebreaks]
-        \frametitle{Highly variable genes}
+        \frametitle{Highly variable genes with normalized dispersions}
 
         \begin{columns}
             \begin{column}{0.45 \textwidth}
@@ -248,12 +248,21 @@
             \end{column}
             \begin{column}{0.45 \textwidth}
                 \begin{figure}
-                    \includegraphics[width=\linewidth]{Figures/04_Highly_variable_genes/Distribution-dispersions_norm.pdf}
-                    \caption{Histplot}
+                    \includegraphics[width=\linewidth]{Figures/04_Highly_variable_genes/2DHist-dispersions_norm.pdf}
+                    \caption{Distribution}
                 \end{figure}
             \end{column}
         \end{columns}
         \framebreak
+
+        \begin{figure}
+            \includegraphics[width=0.6 \linewidth]{Figures/04_Highly_variable_genes/Distribution-dispersions_norm.pdf}
+            \caption{Histogram}
+        \end{figure}
+    \end{frame}
+
+    \begin{frame}[allowframebreaks]
+        \frametitle{Highly variable genes with dispersions}
 
         \begin{columns}
             \begin{column}{0.45 \textwidth}
@@ -264,24 +273,41 @@
             \end{column}
             \begin{column}{0.45 \textwidth}
                 \begin{figure}
-                    \includegraphics[width=\linewidth]{Figures/04_Highly_variable_genes/Distribution-dispersions.pdf}
-                    \caption{Histplot}
+                    \includegraphics[width=\linewidth]{Figures/04_Highly_variable_genes/2DHist-dispersions.pdf}
+                    \caption{Distribution}
                 \end{figure}
             \end{column}
         \end{columns}
         \framebreak
+
+        \begin{figure}
+            \includegraphics[width=0.7 \linewidth]{Figures/04_Highly_variable_genes/Distribution-dispersions.pdf}
+            \caption{Histogram}
+        \end{figure}
     \end{frame}
 
     \subsection{PCA}
+    \begin{frame}
+        \frametitle{Explained variance}
+
+        \begin{figure}
+            \includegraphics[width=0.7 \linewidth]{Figures/05_PCA/ExplainedVariance-Hist.pdf}
+            \caption{Explained variances}
+        \end{figure}
+    \end{frame}
+
     \subsection{Clustering}
-    \begin{frame}[allowframebreaks]
+    \begin{frame}
         \frametitle{Clustering with UMAP}
 
         \begin{figure}
             \includegraphics[width=0.5 \linewidth]{Figures/07_Clustering/Scatter.pdf}
             \caption{Clustering with UMAP}
         \end{figure}
-        \framebreak
+    \end{frame}
+
+    \begin{frame}
+        \frametitle{Cells per cluster}
 
         \begin{columns}
             \begin{column}{0.45 \textwidth}
@@ -297,7 +323,10 @@
                 \end{figure}
             \end{column}
         \end{columns}
-        \framebreak
+    \end{frame}
+
+    \begin{frame}
+        \frametitle{Cells per sample}
 
         \begin{columns}
             \begin{column}{0.45 \textwidth}
@@ -313,10 +342,38 @@
                 \end{figure}
             \end{column}
         \end{columns}
-        \framebreak
     \end{frame}
 
     \subsection{Marker genes}
+    \begin{frame}
+        \frametitle{Cell type scoring}
+
+        \begin{figure}
+            \includegraphics[width=0.7 \linewidth]{Figures/08_Marker_genes/Celltype-Score-Heatmap.pdf}
+            \caption{Cell type scoring}
+        \end{figure}
+    \end{frame}
+
+    \begin{frame}
+        \frametitle{Cell types per cluster}
+
+        \begin{columns}
+            \begin{column}{0.45 \textwidth}
+                \begin{figure}
+                    \includegraphics[width=\linewidth]{Figures/08_Marker_genes/Celltype-Count-Heatmap.pdf}
+                    \caption{Absolute count}
+                \end{figure}
+            \end{column}
+            \begin{column}{0.45 \textwidth}
+                \begin{figure}
+                    \includegraphics[width=\linewidth]{Figures/08_Marker_genes/Celltype-Proportion-Heatmap.pdf}
+                    \caption{Relative proportion}
+                \end{figure}
+            \end{column}
+        \end{columns}
+    \end{frame}
+
+    \subsection{Xenimum coordiantes}
 
     \section{References}
     \begin{frame}[allowframebreaks]
