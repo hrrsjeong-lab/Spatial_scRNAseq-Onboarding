@@ -18,7 +18,7 @@ CANCERS = Test Lung_5K# Lung Breast
 DEGS = 01_Seurat 02_Cell_ranger
 PROJECTIONS = 01_umap 02_tsne 03_phate 04_trimap
 CLUSTERINGS = 01_Leiden 02_Louvain
-CELLTYPES = 01_Human_Lung_Atlas 02_Cells_Lung_Airway 03_Immune_All_High 04_Immune_All_Low 05_Bilous2026_Lung5K_Level2
+CELLTYPES = 01_Human_Lung_Atlas 02_Cells_Lung_Airway 03_Immune_All_High 04_Immune_All_Low 05_Bilous2026_Lung5K
 
 # Options
 LOGGING = 1>$(abspath $@).log 2>&1
@@ -182,10 +182,10 @@ Output/08_Marker_genes/References/03_Immune_All_High.pkl: | Output/08_Marker_gen
 Output/08_Marker_genes/References/04_Immune_All_Low.pkl: | Output/08_Marker_genes/References
 	wget "https://celltypist.cog.sanger.ac.uk/models/Pan_Immune_CellTypist/v2/Immune_All_Low.pkl" -O $(abspath $@) $(LOGGING)
 
-Output/08_Marker_genes/References/Bilous2026_Lung5K_Level2.h5ad: | Output/08_Marker_genes/References
-	wget "https://datasets.cellxgene.cziscience.com/4ca422ae-e4ad-4884-9073-7c3799cd9143.h5ad" -o $(abspath $@) $(LOGGING)
+Output/08_Marker_genes/References/Bilous2026_Lung5K.h5ad: | Output/08_Marker_genes/References
+	wget "https://datasets.cellxgene.cziscience.com/4ca422ae-e4ad-4884-9073-7c3799cd9143.h5ad" -O $(abspath $@) $(LOGGING)
 
-Output/08_Marker_genes/References/05_Bilous2026_Lung5K_Level2.pkl: Python/train_celltype_reference.py Output/08_Marker_genes/References/Bilous2026_Lung5K_Level2.h5ad Output/07_Clustering/Lung_5K.01_Seurat.01_umap.01_Leiden.hdf5
+Output/08_Marker_genes/References/05_Bilous2026_Lung5K.pkl: Python/train_celltype_reference.py Output/08_Marker_genes/References/Bilous2026_Lung5K.h5ad Output/07_Clustering/Lung_5K.01_Seurat.01_umap.01_Leiden.hdf5
 	$(SLURM) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) $(LOGGING)
 
 Output/08_Marker_genes/%.01_Human_Lung_Atlas.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/01_Human_Lung_Atlas.pkl
@@ -200,14 +200,14 @@ Output/08_Marker_genes/%.03_Immune_All_High.hdf5: Python/select_marker_genes.py 
 Output/08_Marker_genes/%.04_Immune_All_Low.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/04_Immune_All_Low.pkl
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-Output/08_Marker_genes/%.05_Bilous2026_Lung5K_Level2.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/05_Bilous2026_Lung5K_Level2.pkl
+Output/08_Marker_genes/%.05_Bilous2026_Lung5K.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/05_Bilous2026_Lung5K.pkl
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 Output/08_Marker_genes/Figures/%.zip: Python/draw_marker_genes.py Output/08_Marker_genes/%.hdf5 | Output/08_Marker_genes/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-step08-test: Output/08_Marker_genes/References/05_Bilous2026_Lung5K_Level2.pkl Output/08_Marker_genes/Test.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.hdf5 Output/08_Marker_genes/Figures/Test.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.zip
-step08-optimal: Output/08_Marker_genes/References/05_Bilous2026_Lung5K_Level2.pkl Output/08_Marker_genes/Lung_5K.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.hdf5 Output/08_Marker_genes/Figures/Lung_5K.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.zip
+step08-test: Output/08_Marker_genes/References/05_Bilous2026_Lung5K.pkl Output/08_Marker_genes/Test.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K.hdf5 Output/08_Marker_genes/Figures/Test.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K.zip
+step08-optimal: Output/08_Marker_genes/References/05_Bilous2026_Lung5K.pkl Output/08_Marker_genes/Lung_5K.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K.hdf5 Output/08_Marker_genes/Figures/Lung_5K.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K.zip
 step08: $(addprefix Output/08_Marker_genes/References/,$(addsuffix .pkl,$(CELLTYPES))) $(addprefix Output/08_Marker_genes/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES))))))) $(addprefix Output/08_Marker_genes/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES)))))))
 .PHONY: step08-test step08-optimal step08
 
@@ -218,8 +218,8 @@ Output/09_Xenium/Figures:
 Output/09_Xenium/Figures/%.zip: Python/draw_xenium_coordinates.py Output/08_Marker_genes/%.hdf5 | Output/09_Xenium/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-step09-test: Output/09_Xenium/Figures/Test.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.zip
-step09-optimal: Output/09_Xenium/Figures/Lung_5K.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.zip
+step09-test: Output/09_Xenium/Figures/Test.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K.zip
+step09-optimal: Output/09_Xenium/Figures/Lung_5K.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K.zip
 step09: $(addprefix Output/09_Xenium/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES)))))))
 .PHONY: step09-test step09-optimal step09
 
@@ -236,7 +236,7 @@ Output/10_Neighborhood/%.hdf5: Python/calculate_nhood_enrichment.py Output/08_Ma
 Output/10_Neighborhood/Figures/%.zip: Python/draw_nhood_enrichment.py Output/10_Neighborhood/%.hdf5 | Output/10_Neighborhood/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-step10-test: Output/10_Neighborhood/Test.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.hdf5 Output/10_Neighborhood/Figures/Test.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.zip
-step10-optimal: Output/10_Neighborhood/Lung_5K.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.hdf5 Output/10_Neighborhood/Figures/Lung_5K.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K_Level2.zip
+step10-test: Output/10_Neighborhood/Test.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K.hdf5 Output/10_Neighborhood/Figures/Test.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K.zip
+step10-optimal: Output/10_Neighborhood/Lung_5K.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K.hdf5 Output/10_Neighborhood/Figures/Lung_5K.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K.zip
 step10: $(addprefix Output/10_Neighborhood/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES))))))) $(addprefix Output/10_Neighborhood/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES)))))))
 .PHONY: step10-test step10-optimal step10
