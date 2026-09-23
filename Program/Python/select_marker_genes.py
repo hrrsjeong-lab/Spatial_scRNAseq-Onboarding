@@ -50,7 +50,7 @@ if __name__ == "__main__":
     input_adata.obsm[step00.marker_column] = marker_data
     print(input_adata.obsm[step00.marker_column])
 
-    predictions = celltypist.annotate(scanpy.AnnData(X=input_adata.layers[step00.log_column].copy(), obs=input_adata.obs, var=input_adata.var), model, majority_voting=True,  use_GPU=True, min_prop=0.5)
+    predictions = celltypist.annotate(scanpy.AnnData(X=input_adata.layers[step00.log_column].copy(), obs=input_adata.obs, var=input_adata.var), model, majority_voting=True, use_GPU=True, min_prop=0.5)
     input_adata.obs[f"{step00.celltype_column}_raw"] = predictions.predicted_labels["predicted_labels"]
     input_adata.obs[step00.celltype_column] = list(map(step00.safe_celltype, predictions.predicted_labels["majority_voting"]))
     input_adata.obsm[step00.celltype_column] = predictions.probability_matrix
