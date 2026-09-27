@@ -6,6 +6,7 @@ import typing
 import matplotlib.patches
 import matplotlib.patheffects
 import matplotlib.transforms
+import matplotlib.typing
 import numpy
 import pandas
 import scipy.sparse
@@ -15,7 +16,7 @@ tmpfs = "/tmpfs"
 cpus_error_message = "CPUs must be positive!!"
 default_error_message = "Something went wrong!!"
 
-matplotlib_parameters = {"font.size": 50, "axes.labelsize": 50, "axes.titlesize": 60, "figure.titlesize": 60, "xtick.labelsize": 40, "ytick.labelsize": 40, "legend.fontsize": 20, "legend.title_fontsize": 25, "figure.dpi": 300, "text.color": "black", "font.family": "sans-serif", "pdf.fonttype": 42, "ps.fonttype": 42, "pdf.compression": 9}
+matplotlib_parameters: typing.Dict[matplotlib.typing.RcKeyType, typing.Any] = {"font.size": 50, "axes.labelsize": 50, "axes.titlesize": 60, "figure.titlesize": 60, "xtick.labelsize": 40, "ytick.labelsize": 40, "legend.fontsize": 20, "legend.title_fontsize": 25, "figure.dpi": 300, "text.color": "black", "font.family": "sans-serif", "pdf.fonttype": 42, "ps.fonttype": 42, "pdf.compression": 9}
 
 epsilon = sys.float_info.epsilon
 float_minimum = sys.float_info.min
