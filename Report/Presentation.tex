@@ -236,55 +236,57 @@
         \end{frame}
 
     \subsection{Highly variable genes}
-    \begin{frame}[allowframebreaks]
-        \frametitle{Highly variable genes with normalized dispersions}
+        \subsubsection{Normalized dispersions}
+        \begin{frame}[allowframebreaks]
+            \frametitle{Highly variable genes with normalized dispersions}
 
-        \begin{columns}
-            \begin{column}{0.45 \textwidth}
-                \begin{figure}
-                    \includegraphics[width=\linewidth]{Figures/04_Highly_variable_genes/Scatter-dispersions_norm.pdf}
-                    \caption{Volcano plot}
-                \end{figure}
-            \end{column}
-            \begin{column}{0.45 \textwidth}
-                \begin{figure}
-                    \includegraphics[width=\linewidth]{Figures/04_Highly_variable_genes/2DHist-dispersions_norm.pdf}
-                    \caption{Distribution}
-                \end{figure}
-            \end{column}
-        \end{columns}
-        \framebreak
+            \begin{columns}
+                \begin{column}{0.45 \textwidth}
+                    \begin{figure}
+                        \includegraphics[width=\linewidth]{Figures/04_Highly_variable_genes/Scatter-dispersions_norm.pdf}
+                        \caption{Volcano plot}
+                    \end{figure}
+                \end{column}
+                \begin{column}{0.45 \textwidth}
+                    \begin{figure}
+                        \includegraphics[width=\linewidth]{Figures/04_Highly_variable_genes/2DHist-dispersions_norm.pdf}
+                        \caption{Distribution}
+                    \end{figure}
+                \end{column}
+            \end{columns}
+            \framebreak
 
-        \begin{figure}
-            \includegraphics[width=0.6 \linewidth]{Figures/04_Highly_variable_genes/Distribution-dispersions_norm.pdf}
-            \caption{Histogram}
-        \end{figure}
-    \end{frame}
+            \begin{figure}
+                \includegraphics[width=0.6 \linewidth]{Figures/04_Highly_variable_genes/Distribution-dispersions_norm.pdf}
+                \caption{Histogram}
+            \end{figure}
+        \end{frame}
 
-    \begin{frame}[allowframebreaks]
-        \frametitle{Highly variable genes with dispersions}
+        \subsubsection{Dispersions}
+        \begin{frame}[allowframebreaks]
+            \frametitle{Highly variable genes with dispersions}
 
-        \begin{columns}
-            \begin{column}{0.45 \textwidth}
-                \begin{figure}
-                    \includegraphics[width=\linewidth]{Figures/04_Highly_variable_genes/Scatter-dispersions.pdf}
-                    \caption{Volcano plot}
-                \end{figure}
-            \end{column}
-            \begin{column}{0.45 \textwidth}
-                \begin{figure}
-                    \includegraphics[width=\linewidth]{Figures/04_Highly_variable_genes/2DHist-dispersions.pdf}
-                    \caption{Distribution}
-                \end{figure}
-            \end{column}
-        \end{columns}
-        \framebreak
+            \begin{columns}
+                \begin{column}{0.45 \textwidth}
+                    \begin{figure}
+                        \includegraphics[width=\linewidth]{Figures/04_Highly_variable_genes/Scatter-dispersions.pdf}
+                        \caption{Volcano plot}
+                    \end{figure}
+                \end{column}
+                \begin{column}{0.45 \textwidth}
+                    \begin{figure}
+                        \includegraphics[width=\linewidth]{Figures/04_Highly_variable_genes/2DHist-dispersions.pdf}
+                        \caption{Distribution}
+                    \end{figure}
+                \end{column}
+            \end{columns}
+            \framebreak
 
-        \begin{figure}
-            \includegraphics[width=0.7 \linewidth]{Figures/04_Highly_variable_genes/Distribution-dispersions.pdf}
-            \caption{Histogram}
-        \end{figure}
-    \end{frame}
+            \begin{figure}
+                \includegraphics[width=0.7 \linewidth]{Figures/04_Highly_variable_genes/Distribution-dispersions.pdf}
+                \caption{Histogram}
+            \end{figure}
+        \end{frame}
 
     \subsection{PCA}
     \begin{frame}
@@ -354,7 +356,7 @@
         \end{figure}
     \end{frame}
 
-    \begin{frame}
+    \begin{frame}[allowframebreaks]
         \frametitle{Cell types per cluster}
 
         \begin{columns}
@@ -371,9 +373,74 @@
                 \end{figure}
             \end{column}
         \end{columns}
+        \framebreak
+
+        \begin{columns}
+            \begin{column}{0.45 \textwidth}
+                \begin{figure}
+                    \includegraphics[width=\linewidth]{Figures/08_Marker_genes/Celltype-Clustering-Count-Bar.pdf}
+                    \caption{Absolute count}
+                \end{figure}
+            \end{column}
+            \begin{column}{0.45 \textwidth}
+                \begin{figure}
+                    \includegraphics[width=\linewidth]{Figures/08_Marker_genes/Celltype-Clustering-Proportion-Bar.pdf}
+                    \caption{Relative proportion}
+                \end{figure}
+            \end{column}
+        \end{columns}
+        \framebreak
+
+        \begin{columns}
+            \begin{column}{0.45 \textwidth}
+                \begin{figure}
+                    \includegraphics[width=\linewidth]{Figures/08_Marker_genes/Clustering-Celltype-Count-Bar.pdf}
+                    \caption{Absolute count}
+                \end{figure}
+            \end{column}
+            \begin{column}{0.45 \textwidth}
+                \begin{figure}
+                    \includegraphics[width=\linewidth]{Figures/08_Marker_genes/Clustering-Celltype-Proportion-Bar.pdf}
+                    \caption{Relative proportion}
+                \end{figure}
+            \end{column}
+        \end{columns}
+    \end{frame}
+
+    \begin{frame}[allowframebreaks]
+        \frametitle{Cluster marker genes}
+
+        \begin{figure}
+            \includegraphics[width=0.5 \linewidth]{Figures/08_Marker_genes/Scatter-Celltype.pdf}
+            \caption{Cell types with clusters}
+        \end{figure}
+        \framebreak
+
+        \begin{columns}
+            \begin{column}{0.45 \textwidth}
+                \begin{figure}
+                    \includegraphics[width=\linewidth]{Figures/08_Marker_genes/Cluster-3.pdf}
+                    \caption{Cluster \#3}
+                \end{figure}
+            \end{column}
+            \begin{column}{0.45 \textwidth}
+                \begin{figure}
+                    \includegraphics[width=\linewidth]{Figures/08_Marker_genes/Cluster-13.pdf}
+                    \caption{Cluster \#13}
+                \end{figure}
+            \end{column}
+        \end{columns}
     \end{frame}
 
     \subsection{Xenimum coordiantes}
+    \begin{frame}
+        \frametitle{Coordinates of cell types}
+
+        \begin{figure}
+            \includegraphics[width=0.8 \linewidth]{Figures/09_Xenium/Relplot-L1.pdf}
+            \caption{Coordinates in L1 samples}
+        \end{figure}
+    \end{frame}
 
     \section{References}
     \begin{frame}[allowframebreaks]
