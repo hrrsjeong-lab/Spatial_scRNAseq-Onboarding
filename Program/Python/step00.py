@@ -45,6 +45,8 @@ neighborhood_column = "Neighborhood"
 rest_value = "Rest"
 rest_color = "lightgray"
 
+evaluation_list = ["Accuracy", "Balanced accuracy", "F1", "Fowlkes–Mallows index", "Informedness", "Markedness", "Negative predictive value", "Positive predictive value", "Precision", "Sensitivity", "Specificity", "Threat score"]
+
 
 def check_suffix(filename: str, suffixes: typing.Set[str]) -> None:
     filename = filename.lower()
@@ -129,3 +131,26 @@ def safe_matrix(x):
 
 def safe_celltype(celltype: str) -> str:
     return celltype.replace("/", "&")
+
+
+def evaluate_confusion_matrix(confusion_matrix: numpy.ndarray) -> typing.Dict[str, float]:
+    assert confusion_matrix.shape == (2, 2), confusion_matrix
+
+    true_positive, false_positive, false_negative, true_negative = confusion_matrix[0][0], confusion_matrix[0][1], confusion_matrix[1][0], confusion_matrix[1][1]
+    positive = true_positive + false_positive
+    negative = true_negative + false_negative
+
+    answer = dict()
+    answer["Accuracy"] = (true_positive + true_negative) / (positive + negative)
+    answer["F1"] = (2 * true_positive) / (2 * true_positive + false_positive + false_negative)
+    answer["Sensitivity"] = true_positive / positive
+    answer["Specificity"] = true_negative / negative
+    answer["Precision"] = true_positive / (true_positive + false_positive)
+    answer["Balanced accuracy"] = (answer["Sensitivity"] + answer["Specificity"]) / 2
+    answer["Informedness"] = answer["Sensitivity"] + answer["Specificity"] - 1
+    answer["Positive predictive value"] = true_positive / positive
+    answer["Negative predictive value"] = true_negative / negative
+    answer["Markedness"] = answer["Positive predictive value"] + answer["Negative predictive value"] - 1
+    answer["Threat score"] = true_positive / (true_positive + false_negative + false_positive)
+    answer["Fowlkes–Mallows index"] = numpy.sqrt(answer["Positive predictive value"] * answer["Sensitivity"])
+    return answer
