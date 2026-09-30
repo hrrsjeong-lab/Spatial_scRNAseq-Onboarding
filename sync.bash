@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-HOST="172.27.35.101"
+HOST="energy1"
 USER="jaewoong"
 PORT="22"
 
