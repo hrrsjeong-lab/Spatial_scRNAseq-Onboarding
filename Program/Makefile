@@ -188,6 +188,13 @@ Output/08_Marker_genes/References/Bilous2026_Lung5K.h5ad: | Output/08_Marker_gen
 Output/08_Marker_genes/References/05_Bilous2026_Lung5K.pkl: Python/train_celltype_reference.py Output/08_Marker_genes/References/Bilous2026_Lung5K.h5ad Output/07_Clustering/Lung_5K.01_Seurat.01_umap.01_Leiden.hdf5
 	$(SLURM) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) $(LOGGING)
 
+Output/08_Marker_genes/References/Lake2025_Kidney.h5ad: | Output/08_Marker_genes/References
+	# wget "https://datasets.cellxgene.cziscience.com/06b8d9c2-0bde-48bd-88d9-730993fc95e2.h5ad" -O $(abspath $@) $(LOGGING)
+	wget "https://datasets.cellxgene.cziscience.com/19aab2ef-654a-4047-8f60-3529c041851d.h5ad" -O $(abspath $@) $(LOGGING)
+
+Output/08_Marker_genes/References/06_Lake2025_Kidney.pkl: Python/train_celltype_reference_2.py Output/08_Marker_genes/References/Lake2025_Kidney.h5ad
+	$(SLURM) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) $(LOGGING)
+
 Output/08_Marker_genes/%.01_Human_Lung_Atlas.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/01_Human_Lung_Atlas.pkl
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
@@ -240,3 +247,19 @@ step10-test: Output/10_Neighborhood/Test.01_Seurat.01_umap.01_Leiden.05_Bilous20
 step10-optimal: Output/10_Neighborhood/Lung_5K.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K.hdf5 Output/10_Neighborhood/Figures/Lung_5K.01_Seurat.01_umap.01_Leiden.05_Bilous2026_Lung5K.zip
 step10: $(addprefix Output/10_Neighborhood/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES))))))) $(addprefix Output/10_Neighborhood/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES)))))))
 .PHONY: step10-test step10-optimal step10
+
+# Step 11 (Evaluate celltype)
+Output/11_Evaluate_celltype:
+	mkdir -p $@
+
+Output/11_Evaluate_celltype/Figures:
+	mkdir -p $@
+
+Output/11_Evaluate_celltype/Lake2025_Kidney.hdf5: Python/select_marker_genes_2.py Output/08_Marker_genes/References/Lake2025_Kidney.h5ad Output/08_Marker_genes/References/06_Lake2025_Kidney.pkl | Output/11_Evaluate_celltype
+	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
+
+Output/11_Evaluate_celltype/Figures/%.zip: Python/draw_evaluate_celltype.py Output/11_Evaluate_celltype/%.hdf5 | Output/11_Evaluate_celltype/Figures
+	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
+
+step11: Output/11_Evaluate_celltype/Lake2025_Kidney.hdf5 Output/11_Evaluate_celltype/Figures/Lake2025_Kidney.zip
+.PHONY: step11
