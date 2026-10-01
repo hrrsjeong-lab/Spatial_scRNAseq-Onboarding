@@ -16,6 +16,11 @@ if __name__ == "__main__":
     step00.check_suffix(args.output, {".tsv", ".tsv.gz"})
 
     input_adata = scanpy.read_h5ad(args.input)
+    if "SAMPLE_ID" in input_adata.obs:
+        input_adata.obs[step00.sample_column] = input_adata.obs["SAMPLE_ID"]
+    else:
+        input_adata.obs[step00.sample_column] = list(map(lambda x: x.split("_")[0], input_adata.obs.index))
+    print(input_adata)
 
     var_genes = input_adata.var_names.astype(str).str.upper()
     input_adata.var["mt"] = var_genes.str.startswith("MT-").astype("bool")
@@ -23,6 +28,7 @@ if __name__ == "__main__":
     input_adata.var["hb"] = var_genes.str.contains(r"^HB[^P]").astype("bool")
 
     qc_data = scanpy.pp.calculate_qc_metrics(input_adata, percent_top=[25, 50, 150, 200], qc_vars=["mt", "ribo", "hb"], log1p=True)
+    qc_data[0][step00.sample_column] = input_adata.obs[step00.sample_column]
 
     if args.target == "cell":
         print(qc_data[0])
