@@ -8,13 +8,17 @@ MEM_PER_CPU = $(shell echo '$(MEMS)/$(CPUS)' | bc)
 SLURM = srun --chdir=$(abspath .) --cpus-per-task=$(CPUS) --export=ALL --job-name="scRNA_$(@F)" --mem=$(MEMS)G --mail-user="jaewoong@gist.ac.kr" --mail-type=FAIL
 GPUS = --gpus=1
 PYTHON = /home/Live/jaewoong/Spatial_scRNAseq-Onboarding/.venv/bin/python3 -B
+R = /usr/bin/Rscript
 rwildcard = $(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(subst *,%,$2),$d))
 product = $(foreach x,$1,$(addprefix $x.,$2))
 
 # References
 HUMAN_FASTA = /home/Share/References/chm13/chm13v2.0.maskedY.fasta
 MATRIX_XLSX = Metadata/GSE311609_series_matrix.xlsx
-CANCERS = Test Lung_5K# Lung Breast
+
+# Constants
+CANCERS = Test Crohn Kidney #Lung_5K Lung Breast
+OPTIMAL = Crohn
 DEGS = 01_Seurat 02_Cell_ranger
 PROJECTIONS = 01_umap 02_tsne 03_phate 04_trimap
 CLUSTERINGS = 01_Leiden 02_Louvain
@@ -44,8 +48,11 @@ Output/01_Merging:
 Output/01_Merging/%.hdf5: Python/merge_input.py Metadata/%.xlsx | Output/01_Merging
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
+Output/01_Merging/Crohn.hdf5: Python/import_rds.py /home/Store/PMC12804086/Xenium_export | Output/01_Merging
+	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
+
 step01-test: Output/01_Merging/Test.hdf5
-step01-optimal: Output/01_Merging/Lung_5K.hdf5
+step01-optimal: Output/01_Merging/$(OPTIMAL).hdf5
 step01: $(addprefix Output/01_Merging/,$(addsuffix .hdf5,$(CANCERS)))
 .PHONY: step01-test step01-optimal step01
 
@@ -66,7 +73,7 @@ Output/02_QC_expressed_genes/Figures/%.zip: Python/draw_expressed_genes.py Outpu
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 step02-test: Output/02_QC_expressed_genes/Test.cell.tsv.gz Output/02_QC_expressed_genes/Test.gene.tsv.gz Output/02_QC_expressed_genes/Figures/Test.zip
-step02-optimal: Output/02_QC_expressed_genes/Lung_5K.cell.tsv.gz Output/02_QC_expressed_genes/Lung_5K.gene.tsv.gz Output/02_QC_expressed_genes/Figures/Lung_5K.zip
+step02-optimal: Output/02_QC_expressed_genes/$(OPTIMAL).cell.tsv.gz Output/02_QC_expressed_genes/$(OPTIMAL).gene.tsv.gz Output/02_QC_expressed_genes/Figures/$(OPTIMAL).zip
 step02: $(addprefix Output/02_QC_expressed_genes/,$(addsuffix .cell.tsv.gz,$(CANCERS))) $(addprefix Output/02_QC_expressed_genes/,$(addsuffix .gene.tsv.gz,$(CANCERS))) $(addprefix Output/02_QC_expressed_genes/Figures/,$(addsuffix .zip,$(CANCERS)))
 .PHONY: step02-test step02-optimal step02
 
