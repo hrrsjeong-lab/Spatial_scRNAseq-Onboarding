@@ -17,6 +17,11 @@ if __name__ == "__main__":
 
     input_adata = scanpy.read_h5ad(args.input)
 
+    var_genes = input_adata.var_names.astype(str).str.upper()
+    input_adata.var["mt"] = var_genes.str.startswith("MT-").astype("bool")
+    input_adata.var["ribo"] = var_genes.str.startswith(("RPS", "RPL")).astype("bool")
+    input_adata.var["hb"] = var_genes.str.contains(r"^HB[^P]").astype("bool")
+
     qc_data = scanpy.pp.calculate_qc_metrics(input_adata, percent_top=[25, 50, 150, 200], qc_vars=["mt", "ribo", "hb"], log1p=True)
 
     if args.target == "cell":
