@@ -42,7 +42,7 @@ if __name__ == "__main__":
     print(clustering_data)
 
     gene_list = list(input_adata.var[(input_adata.var["highly_variable"])].index)
-    clustering_data = pandas.concat([clustering_data, scanpy.get.obs_df(input_adata, keys=gene_list, layer="Counts")], axis="columns", verify_integrity=True)
+    clustering_data = pandas.concat([clustering_data, scanpy.get.obs_df(input_adata, keys=gene_list)], axis="columns", verify_integrity=True)
     print(clustering_data)
 
     sample_list = sorted(set(clustering_data[step00.sample_column]))

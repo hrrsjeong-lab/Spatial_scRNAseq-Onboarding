@@ -1,4 +1,5 @@
 import argparse
+import pandas
 import scanpy
 import rapids_singlecell
 import step00
@@ -17,7 +18,6 @@ if __name__ == "__main__":
 
     input_adata = scanpy.read_h5ad(args.input)
     input_adata.X = step00.safe_matrix(input_adata.X)
-    input_adata.layers["Counts"] = step00.safe_matrix(input_adata.layers["Counts"])
     print(input_adata)
 
     rapids_singlecell.get.anndata_to_GPU(input_adata, layer=step00.log_column)

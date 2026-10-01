@@ -56,7 +56,7 @@ if __name__ == "__main__":
         input_adata.var[gene_test] = gene_data[gene_test].to_numpy()
     print(input_adata)
 
-    input_adata.layers[step00.log_column] = input_adata.layers["Counts"].astype(float, copy=True)
+    input_adata.layers[step00.log_column] = input_adata.X.astype(float, copy=True)
     rapids_singlecell.get.anndata_to_GPU(input_adata, layer=step00.log_column)
     rapids_singlecell.pp.normalize_total(input_adata, exclude_highly_expressed=False, target_sum=10 ** 4, layer=step00.log_column)
     print(input_adata)

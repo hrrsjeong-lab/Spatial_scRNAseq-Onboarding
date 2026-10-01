@@ -39,7 +39,7 @@ if __name__ == "__main__":
         print(pca_data)
 
         selected_genes = list(input_adata.var[(input_adata.var["highly_variable"])].sort_values("dispersions_norm", ascending=False).iloc[:10, :].index)
-        pca_data = pandas.concat([pca_data, scanpy.get.obs_df(input_adata, keys=selected_genes, layer="Counts")], axis="columns", verify_integrity=True, join="inner")
+        pca_data = pandas.concat([pca_data, scanpy.get.obs_df(input_adata, keys=selected_genes)], axis="columns", verify_integrity=True, join="inner")
         print(pca_data)
 
         for gene in tqdm.tqdm(selected_genes):
