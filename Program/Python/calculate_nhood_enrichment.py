@@ -61,20 +61,22 @@ if __name__ == "__main__":
     for sample in tqdm.tqdm(sample_list):
         sample_adata = light_adata[(light_adata.obs[step00.sample_column] == sample)].copy()
 
-        counts = sample_adata.obs[step00.neighborhood_column].value_counts()
-        sample_adata = sample_adata[sample_adata.obs[step00.neighborhood_column].isin(cell_type_list)].copy()
-        sample_adata.obs[step00.neighborhood_column] = pandas.Categorical(sample_adata.obs[step00.neighborhood_column].astype(str), categories=cell_type_list)
+        sample_labels = sample_adata.obs[step00.neighborhood_column].astype(str)
+        counts = sample_labels.value_counts()
+        sample_cell_type_list = sorted(counts.index[counts >= args.min_cells])
+        dropped_cell_type_list = sorted(set(counts.index) - set(sample_cell_type_list))
+        sample_categories = sample_cell_type_list + ([step00.rest_value] if dropped_cell_type_list else [])
+        sample_adata.obs[step00.neighborhood_column] = pandas.Categorical(sample_labels.where(sample_labels.isin(sample_cell_type_list), step00.rest_value), categories=sample_categories)
+        print(f"> {sample}: kept {len(sample_cell_type_list)} cell types with >= {args.min_cells} cells; pooled into {step00.rest_value}: {dropped_cell_type_list}")
 
         with joblib.parallel_config(max_nbytes=None):
             squidpy.gr.nhood_enrichment(sample_adata, cluster_key=step00.neighborhood_column, connectivity_key=step00.connectivity_key, n_perms=args.perms, seed=42, n_jobs=args.cpus, show_progress_bar=False)
 
         result = sample_adata.uns[f"{step00.neighborhood_column}_nhood_enrichment"]
-        zscore = pandas.DataFrame(result["zscore"], index=cell_type_list, columns=cell_type_list)
-        count = pandas.DataFrame(result["count"], index=cell_type_list, columns=cell_type_list)
-        print(f"> {sample} (n={sample_adata.n_obs}, edges={int(sample_adata.obsp[step00.connectivity_key].sum())})")
-        print(zscore.round(1))
+        zscore = pandas.DataFrame(result["zscore"], index=sample_categories, columns=sample_categories)
+        count = pandas.DataFrame(result["count"], index=sample_categories, columns=sample_categories)
 
-        for source, target in tqdm.contrib.itertools.product(cell_type_list, cell_type_list, position=1, leave=False):
+        for source, target in tqdm.contrib.itertools.product(sample_cell_type_list, sample_cell_type_list, position=1, leave=False):
             result_list.append((sample, source, target, float(zscore.loc[source, target]), int(count.loc[source, target]), int(counts[source]), int(counts[target])))
 
     result_data = pandas.DataFrame(result_list, columns=[step00.sample_column, "Source", "Target", "zscore", "count", "n_source", "n_target"])
