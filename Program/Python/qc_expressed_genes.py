@@ -17,9 +17,9 @@ if __name__ == "__main__":
 
     input_adata = scanpy.read_h5ad(args.input)
     if "SAMPLE_ID" in input_adata.obs:
-        input_adata.obs[step00.sample_column] = input_adata.obs["SAMPLE_ID"]
+        input_adata.obs[step00.sample_column] = list(map(step00.safe_celltype, input_adata.obs["SAMPLE_ID"]))
     else:
-        input_adata.obs[step00.sample_column] = list(map(lambda x: x.split("_")[0], input_adata.obs.index))
+        input_adata.obs[step00.sample_column] = list(map(lambda x: step00.safe_celltype(x.split("_")[0]), input_adata.obs.index))
     print(input_adata)
 
     var_genes = input_adata.var_names.astype(str).str.upper()
