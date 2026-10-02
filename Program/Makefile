@@ -205,6 +205,9 @@ Output/08_Marker_genes/References/06_Lake2025_Kidney.pkl: Python/train_celltype_
 Output/08_Marker_genes/References/07_CRC.pkl: | Output/08_Marker_genes/References
 	wget "https://celltypist.cog.sanger.ac.uk/models/Colorectal_Cancer_Lee/v1/Human_Colorectal_Cancer.pkl" -O $(abspath $@) $(LOGGING)
 
+Output/08_Marker_genes/References/08_Crohn.pkl: | Output/08_Marker_genes/References
+	wget "https://celltypist.cog.sanger.ac.uk/models/Intestinal_Tract_Elmentaite/v1/Cells_Intestinal_Tract.pkl" -O $(abspath $@) $(LOGGING)
+
 Output/08_Marker_genes/%.01_Human_Lung_Atlas.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/01_Human_Lung_Atlas.pkl
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
@@ -223,11 +226,14 @@ Output/08_Marker_genes/%.05_Bilous2026_Lung5K.hdf5: Python/select_marker_genes.p
 Output/08_Marker_genes/%.07_CRC.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/07_CRC.pkl
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
+Output/08_Marker_genes/%.08_Crohn.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/08_Crohn.pkl
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
+
 Output/08_Marker_genes/Figures/%.zip: Python/draw_marker_genes.py Output/08_Marker_genes/%.hdf5 | Output/08_Marker_genes/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-step08-test: Output/08_Marker_genes/References/07_CRC.pkl Output/08_Marker_genes/Test.01_Seurat.01_umap.01_Leiden.07_CRC.hdf5 Output/08_Marker_genes/Figures/Test.01_Seurat.01_umap.01_Leiden.07_CRC.zip
-step08-optimal: Output/08_Marker_genes/References/07_CRC.pkl Output/08_Marker_genes/$(OPTIMAL).01_Seurat.01_umap.01_Leiden.07_CRC.hdf5 Output/08_Marker_genes/Figures/$(OPTIMAL).01_Seurat.01_umap.01_Leiden.07_CRC.zip
+step08-test: Output/08_Marker_genes/References/08_Crohn.pkl Output/08_Marker_genes/Test.01_Seurat.01_umap.01_Leiden.08_Crohn.hdf5 Output/08_Marker_genes/Figures/Test.01_Seurat.01_umap.01_Leiden.08_Crohn.zip
+step08-optimal: Output/08_Marker_genes/References/08_Crohn.pkl Output/08_Marker_genes/$(OPTIMAL).01_Seurat.01_umap.01_Leiden.08_Crohn.hdf5 Output/08_Marker_genes/Figures/$(OPTIMAL).01_Seurat.01_umap.01_Leiden.08_Crohn.zip
 step08: $(addprefix Output/08_Marker_genes/References/,$(addsuffix .pkl,$(CELLTYPES))) $(addprefix Output/08_Marker_genes/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES))))))) $(addprefix Output/08_Marker_genes/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES)))))))
 .PHONY: step08-test step08-optimal step08
 
@@ -238,8 +244,8 @@ Output/09_Xenium/Figures:
 Output/09_Xenium/Figures/%.zip: Python/draw_xenium_coordinates.py Output/08_Marker_genes/%.hdf5 | Output/09_Xenium/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-step09-test: Output/09_Xenium/Figures/Test.01_Seurat.01_umap.01_Leiden.07_CRC.zip
-step09-optimal: Output/09_Xenium/Figures/$(OPTIMAL).01_Seurat.01_umap.01_Leiden.07_CRC.zip
+step09-test: Output/09_Xenium/Figures/Test.01_Seurat.01_umap.01_Leiden.08_Crohn.zip
+step09-optimal: Output/09_Xenium/Figures/$(OPTIMAL).01_Seurat.01_umap.01_Leiden.08_Crohn.zip
 step09: $(addprefix Output/09_Xenium/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES)))))))
 .PHONY: step09-test step09-optimal step09
 
@@ -256,8 +262,8 @@ Output/10_Neighborhood/%.hdf5: Python/calculate_nhood_enrichment.py Output/08_Ma
 Output/10_Neighborhood/Figures/%.zip: Python/draw_nhood_enrichment.py Output/10_Neighborhood/%.hdf5 | Output/10_Neighborhood/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-step10-test: Output/10_Neighborhood/Test.01_Seurat.01_umap.01_Leiden.07_CRC.hdf5 Output/10_Neighborhood/Figures/Test.01_Seurat.01_umap.01_Leiden.07_CRC.zip
-step10-optimal: Output/10_Neighborhood/$(OPTIMAL).01_Seurat.01_umap.01_Leiden.07_CRC.hdf5 Output/10_Neighborhood/Figures/$(OPTIMAL).01_Seurat.01_umap.01_Leiden.07_CRC.zip
+step10-test: Output/10_Neighborhood/Test.01_Seurat.01_umap.01_Leiden.08_Crohn.hdf5 Output/10_Neighborhood/Figures/Test.01_Seurat.01_umap.01_Leiden.08_Crohn.zip
+step10-optimal: Output/10_Neighborhood/$(OPTIMAL).01_Seurat.01_umap.01_Leiden.08_Crohn.hdf5 Output/10_Neighborhood/Figures/$(OPTIMAL).01_Seurat.01_umap.01_Leiden.08_Crohn.zip
 step10: $(addprefix Output/10_Neighborhood/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES))))))) $(addprefix Output/10_Neighborhood/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES)))))))
 .PHONY: step10-test step10-optimal step10
 
