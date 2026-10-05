@@ -35,7 +35,9 @@ if __name__ == "__main__":
     gene_list = sorted(input_adata.var.index)
     print("Gene:", len(gene_list))
 
-    marker_data = pandas.DataFrame(index=input_adata.obs.index)
+    score_name_list = list(map(step00.safe_celltype, cell_type_list))
+
+    marker_dict = dict()
     input_adata.uns[step00.marker_column] = dict()
 
     for cell_type in tqdm.tqdm(cell_type_list):
@@ -44,13 +46,19 @@ if __name__ == "__main__":
         if not marker_gene_list:
             continue
 
-        input_adata.uns[step00.marker_column][step00.safe_celltype(cell_type)] = marker_gene_list
-        rapids_singlecell.tl.score_genes(input_adata, marker_gene_list, score_name=step00.safe_celltype(cell_type), layer=step00.log_column, use_raw=False, ctrl_as_ref=False, random_state=42)
-        marker_data[step00.safe_celltype(cell_type)] = input_adata.obs[step00.safe_celltype(cell_type)]
-    input_adata.obsm[step00.marker_column] = marker_data
+        score_name = step00.safe_celltype(cell_type)
+        input_adata.uns[step00.marker_column][score_name] = marker_gene_list
+        rapids_singlecell.tl.score_genes(input_adata, marker_gene_list, score_name=score_name, layer=step00.log_column, use_raw=False, ctrl_as_ref=False, random_state=42)
+        marker_dict[score_name] = input_adata.obs.pop(score_name).to_numpy()
+    input_adata.obsm[step00.marker_column] = pandas.DataFrame(marker_dict, index=input_adata.obs.index)
     print(input_adata.obsm[step00.marker_column])
 
-    predictions = celltypist.annotate(scanpy.AnnData(X=input_adata.layers[step00.log_column].copy(), obs=input_adata.obs, var=input_adata.var), model, majority_voting=True, use_GPU=True, min_prop=0.5)
+    annotation_adata = scanpy.AnnData(X=input_adata.layers[step00.log_column].copy(), obs=input_adata.obs, var=input_adata.var)
+    annotation_adata.obsp["connectivities"] = input_adata.obsp["connectivities"]
+    annotation_adata.obsp["distances"] = input_adata.obsp["distances"]
+    annotation_adata.uns["neighbors"] = input_adata.uns["neighbors"]
+    predictions = celltypist.annotate(annotation_adata, model, majority_voting=True, use_GPU=True, min_prop=0.0)
+
     input_adata.obs[f"{step00.celltype_column}_raw"] = predictions.predicted_labels["predicted_labels"]
     input_adata.obs[step00.celltype_column] = list(map(step00.safe_celltype, predictions.predicted_labels["majority_voting"]))
     input_adata.obsm[step00.celltype_column] = predictions.probability_matrix
