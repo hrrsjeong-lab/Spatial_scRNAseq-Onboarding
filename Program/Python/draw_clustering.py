@@ -137,7 +137,7 @@ if __name__ == "__main__":
 
         fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
 
-        seaborn.scatterplot(data=clustering_data, x=step00.projection_columns[0], y=step00.projection_columns[1], hue=step00.clustering_column, palette=cluster_palette, legend=False, rasterized=True, s=30, edgecolor=None, ax=ax)
+        seaborn.scatterplot(data=clustering_data, x=step00.projection_columns[0], y=step00.projection_columns[1], hue=step00.clustering_column, palette=cluster_palette, legend=False, rasterized=True, s=5, edgecolor=None, ax=ax)
         for cluster in tqdm.tqdm(cluster_list):
             matplotlib.pyplot.text(numpy.mean(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[0]]), numpy.mean(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[1]]), cluster, color="black", fontsize="x-small", horizontalalignment="center", verticalalignment="center", path_effects=step00.path_effects)
 
