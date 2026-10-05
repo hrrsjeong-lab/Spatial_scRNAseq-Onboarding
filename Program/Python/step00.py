@@ -45,6 +45,9 @@ neighborhood_column = "Neighborhood"
 rest_value = "Rest"
 rest_color = "lightgray"
 
+heterogeneous_value = "Heterogeneous"
+heterogeneous_color = "dimgray"
+
 evaluation_list = ["Accuracy", "Balanced accuracy", "F1", "Fowlkes–Mallows index", "Informedness", "Markedness", "Negative predictive value", "Positive predictive value", "Precision", "Sensitivity", "Specificity", "Threat score"]
 
 
