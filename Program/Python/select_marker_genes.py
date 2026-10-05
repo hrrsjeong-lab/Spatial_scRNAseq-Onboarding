@@ -57,7 +57,7 @@ if __name__ == "__main__":
     annotation_adata.obsp["connectivities"] = input_adata.obsp["connectivities"]
     annotation_adata.obsp["distances"] = input_adata.obsp["distances"]
     annotation_adata.uns["neighbors"] = input_adata.uns["neighbors"]
-    predictions = celltypist.annotate(annotation_adata, model, majority_voting=True, use_GPU=True, min_prop=0.0)
+    predictions = celltypist.annotate(annotation_adata, model, majority_voting=True, use_GPU=True, min_prop=0.33)
 
     input_adata.obs[f"{step00.celltype_column}_raw"] = predictions.predicted_labels["predicted_labels"]
     input_adata.obs[step00.celltype_column] = list(map(step00.safe_celltype, predictions.predicted_labels["majority_voting"]))
