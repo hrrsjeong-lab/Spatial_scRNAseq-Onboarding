@@ -36,8 +36,10 @@ if __name__ == "__main__":
     coordinate_data = input_adata.obs[[*step00.spatial_columns, step00.sample_column, step00.celltype_column]]
     print(coordinate_data)
 
-    cell_type_list = sorted(set(input_adata.obs[step00.celltype_column]))
-    cell_type_palette = dict(zip(cell_type_list, itertools.cycle(matplotlib.colors.XKCD_COLORS)))
+    cell_type_list = sorted(set(input_adata.obs[step00.celltype_column]) - {step00.heterogeneous_value})
+    cell_type_palette = dict(zip(cell_type_list, itertools.cycle(matplotlib.colors.XKCD_COLORS))) | {step00.heterogeneous_value: step00.heterogeneous_color}
+    if step00.heterogeneous_value in set(input_adata.obs[step00.celltype_column]):
+        cell_type_list.append(step00.heterogeneous_value)
     print("Cell type:", len(cell_type_list), cell_type_list)
 
     sample_list = sorted(set(input_adata.obs[step00.sample_column]))

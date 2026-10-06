@@ -227,10 +227,10 @@ Output/08_Marker_genes/%.07_CRC.hdf5: Python/select_marker_genes.py Output/07_Cl
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 Output/08_Marker_genes/%.08_Crohn.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/08_Crohn.pkl
-	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING_TEE)
 
 Output/08_Marker_genes/Figures/%.zip: Python/draw_marker_genes.py Output/08_Marker_genes/%.hdf5 | Output/08_Marker_genes/Figures
-	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
+	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING_TEE)
 
 step08-test: Output/08_Marker_genes/References/08_Crohn.pkl Output/08_Marker_genes/Test.01_Seurat.01_umap.01_Leiden.08_Crohn.hdf5 Output/08_Marker_genes/Figures/Test.01_Seurat.01_umap.01_Leiden.08_Crohn.zip
 step08-optimal: Output/08_Marker_genes/References/08_Crohn.pkl Output/08_Marker_genes/$(OPTIMAL).01_Seurat.01_umap.01_Leiden.08_Crohn.hdf5 Output/08_Marker_genes/Figures/$(OPTIMAL).01_Seurat.01_umap.01_Leiden.08_Crohn.zip
@@ -242,7 +242,7 @@ Output/09_Xenium/Figures:
 	mkdir -p $@
 
 Output/09_Xenium/Figures/%.zip: Python/draw_xenium_coordinates.py Output/08_Marker_genes/%.hdf5 | Output/09_Xenium/Figures
-	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
+	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING_TEE)
 
 step09-test: Output/09_Xenium/Figures/Test.01_Seurat.01_umap.01_Leiden.08_Crohn.zip
 step09-optimal: Output/09_Xenium/Figures/$(OPTIMAL).01_Seurat.01_umap.01_Leiden.08_Crohn.zip

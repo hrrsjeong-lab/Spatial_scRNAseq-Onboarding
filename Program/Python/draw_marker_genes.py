@@ -48,21 +48,23 @@ if __name__ == "__main__":
     gene_list = sorted(set().union(*input_adata.uns[step00.marker_column].values()))
     print("Gene:", len(gene_list))
 
-    cell_type_list = sorted(set(input_adata.obs[step00.celltype_column]) & set(input_adata.uns[step00.marker_column].keys()))
-    cell_type_palette = dict(zip(cell_type_list, itertools.cycle(matplotlib.colors.XKCD_COLORS)))
+    marker_cell_type_list = sorted(set(input_adata.obs[step00.celltype_column]) & set(input_adata.uns[step00.marker_column].keys()))
+    cell_type_list = marker_cell_type_list + ([step00.heterogeneous_value] if (step00.heterogeneous_value in set(input_adata.obs[step00.celltype_column])) else [])
+    cell_type_palette = dict(zip(marker_cell_type_list, itertools.cycle(matplotlib.colors.XKCD_COLORS))) | {step00.heterogeneous_value: step00.heterogeneous_color}
     print("Cell type:", len(cell_type_list), cell_type_list)
+    print("Cell type without markers:", sorted(set(input_adata.obs[step00.celltype_column]) - set(cell_type_list)))
 
     sample_list = sorted(set(clustering_data[step00.sample_column]))
     sample_palette = dict(zip(sample_list, itertools.cycle(matplotlib.colors.TABLEAU_COLORS)))
     print("Sample:", len(sample_list), sample_list)
 
-    cluster_score_data = input_adata.obsm[step00.celltype_column].groupby(input_adata.obs[step00.clustering_column]).mean().loc[cluster_list, cell_type_list]
+    cluster_score_data = input_adata.obsm[step00.celltype_column].groupby(input_adata.obs[step00.clustering_column]).mean().loc[cluster_list, marker_cell_type_list]
     for index in tqdm.tqdm(list(cluster_score_data.index)):
         cluster_score_data.loc[index, :] = cluster_score_data.loc[index, :] / sum(cluster_score_data.loc[index, :])
     cluster_score_data = cluster_score_data.fillna(0.0)
     print(cluster_score_data)
 
-    marker_score_data = input_adata.obsm[step00.marker_column].loc[:, cell_type_list].copy()
+    marker_score_data = input_adata.obsm[step00.marker_column].loc[:, marker_cell_type_list].copy()
     marker_score_data[f"{step00.marker_column}_argmax"] = marker_score_data.idxmax(axis="columns")
     print(marker_score_data)
 
@@ -92,13 +94,13 @@ if __name__ == "__main__":
     with tempfile.TemporaryDirectory() as directory:
         figure_list: typing.List[str] = list()
 
-        fig, ax = matplotlib.pyplot.subplots(figsize=(24, 18))
+        fig, ax = matplotlib.pyplot.subplots(figsize=(48, 36))
 
-        seaborn.heatmap(data=cluster_score_data, vmin=0.0, vmax=1.0, robust=True, cmap="YlOrRd", annot=True, fmt=".2f", annot_kws={"size": "xx-small"}, cbar=False, ax=ax)
+        seaborn.heatmap(data=cluster_score_data, xticklabels=True, yticklabels=True, vmin=0.0, vmax=1.0, robust=True, cmap="YlOrRd", annot=True, fmt=".2f", annot_kws={"size": "xx-small"}, cbar=False, ax=ax)
 
         matplotlib.pyplot.xticks(fontsize="xx-small")
         matplotlib.pyplot.yticks(fontsize="xx-small", rotation="horizontal")
-        matplotlib.pyplot.xlabel(step00.celltype_column)
+        matplotlib.pyplot.xlabel(f"{step00.celltype_column} (n={len(marker_cell_type_list)})")
         matplotlib.pyplot.ylabel(step00.clustering_column)
         matplotlib.pyplot.tight_layout()
 
@@ -108,13 +110,13 @@ if __name__ == "__main__":
         fig.savefig(figure_list[-1])
         matplotlib.pyplot.close(fig)
 
-        fig, ax = matplotlib.pyplot.subplots(figsize=(24, 18))
+        fig, ax = matplotlib.pyplot.subplots(figsize=(48, 36))
 
-        seaborn.heatmap(data=cluster_counter_data, vmin=0, robust=True, cmap="YlOrRd", annot=True, fmt="d", annot_kws={"size": "xx-small"}, cbar=False, ax=ax)
+        seaborn.heatmap(data=cluster_counter_data, xticklabels=True, yticklabels=True, vmin=0, robust=True, cmap="YlOrRd", annot=True, fmt="d", annot_kws={"size": "xx-small"}, cbar=False, ax=ax)
 
         matplotlib.pyplot.xticks(fontsize="xx-small")
         matplotlib.pyplot.yticks(fontsize="xx-small", rotation="horizontal")
-        matplotlib.pyplot.xlabel(step00.celltype_column)
+        matplotlib.pyplot.xlabel(f"{step00.celltype_column} (n={len(cell_type_list)})")
         matplotlib.pyplot.ylabel(step00.clustering_column)
         matplotlib.pyplot.tight_layout()
 
@@ -124,13 +126,13 @@ if __name__ == "__main__":
         fig.savefig(figure_list[-1])
         matplotlib.pyplot.close(fig)
 
-        fig, ax = matplotlib.pyplot.subplots(figsize=(24, 18))
+        fig, ax = matplotlib.pyplot.subplots(figsize=(48, 36))
 
-        seaborn.heatmap(data=cluster_counter_data.div(cluster_counter_data.sum(axis="columns"), axis="index"), vmin=0, robust=True, cmap="YlOrRd", annot=True, fmt=".2f", annot_kws={"size": "xx-small"}, cbar=False, ax=ax)
+        seaborn.heatmap(data=cluster_counter_data.div(clustering_data[step00.clustering_column].astype(str).value_counts().reindex(cluster_list), axis="index"), xticklabels=True, yticklabels=True, vmin=0, robust=True, cmap="YlOrRd", annot=True, fmt=".2f", annot_kws={"size": "xx-small"}, cbar=False, ax=ax)
 
         matplotlib.pyplot.xticks(fontsize="xx-small")
         matplotlib.pyplot.yticks(fontsize="xx-small", rotation="horizontal")
-        matplotlib.pyplot.xlabel(step00.celltype_column)
+        matplotlib.pyplot.xlabel(f"{step00.celltype_column} (n={len(cell_type_list)})")
         matplotlib.pyplot.ylabel(step00.clustering_column)
         matplotlib.pyplot.tight_layout()
 
@@ -141,7 +143,8 @@ if __name__ == "__main__":
         matplotlib.pyplot.close(fig)
 
         for cluster in tqdm.tqdm(cluster_list):
-            cell_type = sorted(zip(cluster_score_data.loc[cluster, :], cell_type_list))[-1][1]
+            break
+            cell_type = sorted(zip(cluster_score_data.loc[cluster, :], marker_cell_type_list))[-1][1]
 
             fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
 
@@ -161,17 +164,17 @@ if __name__ == "__main__":
             fig.savefig(figure_list[-1])
             matplotlib.pyplot.close(fig)
 
-        fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
+        fig, ax = matplotlib.pyplot.subplots(figsize=(36, 36))
 
         seaborn.scatterplot(data=clustering_data, x=step00.projection_columns[0], y=step00.projection_columns[1], hue=step00.celltype_column, hue_order=cell_type_list, palette=cell_type_palette, rasterized=True, s=5, edgecolor=None, ax=ax)
 
-        for cell_type in tqdm.tqdm(cell_type_list):
+        for cell_type in tqdm.tqdm(marker_cell_type_list):
             step00.confidence_ellipse(clustering_data.loc[(clustering_data[step00.celltype_column] == cell_type), step00.projection_columns[0]], clustering_data.loc[(clustering_data[step00.celltype_column] == cell_type), step00.projection_columns[1]], ax=ax, edgecolor="black", linewidth=2.5)
             matplotlib.pyplot.text(numpy.mean(clustering_data.loc[(clustering_data[step00.celltype_column] == cell_type), step00.projection_columns[0]]), numpy.mean(clustering_data.loc[(clustering_data[step00.celltype_column] == cell_type), step00.projection_columns[1]]), cell_type, horizontalalignment="center", verticalalignment="center", fontsize="x-small", color="black", path_effects=step00.path_effects)
 
         ax.set_xticklabels([])
         ax.set_yticklabels([])
-        matplotlib.pyplot.legend(loc="lower left", title=step00.celltype_column, title_fontsize="xx-small", markerscale=10)
+        matplotlib.pyplot.legend(loc="lower left", title=f"{step00.celltype_column} (n={len(cell_type_list)})", title_fontsize="xx-small", markerscale=10)
         matplotlib.pyplot.tight_layout()
 
         figure_list.append(f"{directory}/Scatter-{step00.celltype_column}.pdf")
@@ -180,17 +183,17 @@ if __name__ == "__main__":
         fig.savefig(figure_list[-1])
         matplotlib.pyplot.close(fig)
 
-        fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
+        fig, ax = matplotlib.pyplot.subplots(figsize=(36, 36))
 
         seaborn.scatterplot(data=clustering_data, x=step00.projection_columns[0], y=step00.projection_columns[1], hue=step00.celltype_column, hue_order=cell_type_list, palette=cell_type_palette, rasterized=True, s=5, edgecolor=None, ax=ax)
 
         for cluster in tqdm.tqdm(cluster_list):
             step00.confidence_ellipse(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[0]], clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[1]], ax=ax, edgecolor="black", linewidth=2.5)
-            matplotlib.pyplot.text(numpy.mean(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[0]]), numpy.mean(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[1]]), cluster, horizontalalignment="center", verticalalignment="center", fontsize="medium", color="black", path_effects=step00.path_effects)
+            matplotlib.pyplot.text(numpy.mean(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[0]]), numpy.mean(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[1]]), cluster, horizontalalignment="center", verticalalignment="center", fontsize="small", color="black", path_effects=step00.path_effects)
 
         ax.set_xticklabels([])
         ax.set_yticklabels([])
-        matplotlib.pyplot.legend(loc="lower left", title=step00.celltype_column, title_fontsize="xx-small", markerscale=10)
+        matplotlib.pyplot.legend(loc="lower left", title=f"{step00.celltype_column} (n={len(cell_type_list)})", title_fontsize="xx-small", markerscale=10)
         matplotlib.pyplot.tight_layout()
 
         figure_list.append(f"{directory}/Scatter-{step00.clustering_column}.pdf")
@@ -204,7 +207,7 @@ if __name__ == "__main__":
         for i, cluster in tqdm.contrib.tenumerate(cluster_list):
             matplotlib.pyplot.bar(range(len(cell_type_list)), cluster_counter_data.iloc[i, :], bottom=cluster_counter_data.iloc[:i, :].sum(axis="index"), color=cluster_palette[cluster], label=cluster, linewidth=0, edgecolor=None)
 
-        matplotlib.pyplot.xlabel(step00.celltype_column)
+        matplotlib.pyplot.xlabel(f"{step00.celltype_column} (n={len(cell_type_list)})")
         matplotlib.pyplot.ylabel("Cell count")
         matplotlib.pyplot.xticks(range(len(cell_type_list)), cell_type_list, fontsize="xx-small", rotation="vertical")
         matplotlib.pyplot.yticks(fontsize="xx-small")
@@ -222,7 +225,7 @@ if __name__ == "__main__":
         for i, cluster in tqdm.contrib.tenumerate(cluster_list):
             matplotlib.pyplot.bar(range(len(cell_type_list)), (cluster_counter_data.iloc[i, :] / cluster_counter_data.sum(axis="index")), bottom=(cluster_counter_data.iloc[:i, :].sum(axis="index") / cluster_counter_data.sum(axis="index")), color=cluster_palette[cluster], label=cluster, linewidth=0, edgecolor=None)
 
-        matplotlib.pyplot.xlabel(step00.celltype_column)
+        matplotlib.pyplot.xlabel(f"{step00.celltype_column} (n={len(cell_type_list)})")
         matplotlib.pyplot.ylabel("Cell proportion")
         matplotlib.pyplot.xticks(range(len(cell_type_list)), cell_type_list, fontsize="xx-small", rotation="vertical")
         matplotlib.pyplot.yticks(fontsize="xx-small")
@@ -244,7 +247,7 @@ if __name__ == "__main__":
         matplotlib.pyplot.ylabel("Cell count")
         matplotlib.pyplot.xticks(range(len(cluster_list)), cluster_list, fontsize="xx-small", rotation="vertical")
         matplotlib.pyplot.yticks(fontsize="xx-small")
-        matplotlib.pyplot.legend(title=step00.celltype_column, loc="upper right", ncols=len(cell_type_list) // 4 + 1)
+        matplotlib.pyplot.legend(title=step00.celltype_column, loc="upper right", ncols=4)
         matplotlib.pyplot.tight_layout()
 
         figure_list.append(f"{directory}/{step00.clustering_column}-{step00.celltype_column}-Count-Bar.pdf")
@@ -262,7 +265,7 @@ if __name__ == "__main__":
         matplotlib.pyplot.ylabel("Cell proportion")
         matplotlib.pyplot.xticks(range(len(cluster_list)), cluster_list, fontsize="xx-small", rotation="vertical")
         matplotlib.pyplot.yticks(fontsize="xx-small")
-        matplotlib.pyplot.legend(title=step00.celltype_column, loc="upper right", ncols=len(cell_type_list) // 4 + 1)
+        matplotlib.pyplot.legend(title=step00.celltype_column, loc="upper right", ncols=4)
         matplotlib.pyplot.tight_layout()
 
         figure_list.append(f"{directory}/{step00.clustering_column}-{step00.celltype_column}-Proportion-Bar.pdf")
@@ -280,7 +283,7 @@ if __name__ == "__main__":
         matplotlib.pyplot.ylabel("Cell count")
         matplotlib.pyplot.xticks(range(len(sample_list)), sample_list, fontsize="xx-small", rotation="vertical")
         matplotlib.pyplot.yticks(fontsize="xx-small")
-        matplotlib.pyplot.legend(title=step00.celltype_column, loc="upper right", ncols=len(cell_type_list) // 4 + 1)
+        matplotlib.pyplot.legend(title=step00.celltype_column, loc="upper right", ncols=4)
         matplotlib.pyplot.tight_layout()
 
         figure_list.append(f"{directory}/{step00.sample_column}-{step00.celltype_column}-Count-Bar.pdf")
@@ -298,7 +301,7 @@ if __name__ == "__main__":
         matplotlib.pyplot.ylabel("Cell proportion")
         matplotlib.pyplot.xticks(range(len(sample_list)), sample_list, fontsize="xx-small", rotation="vertical")
         matplotlib.pyplot.yticks(fontsize="xx-small")
-        matplotlib.pyplot.legend(title=step00.celltype_column, loc="upper right", ncols=len(cell_type_list) // 4 + 1)
+        matplotlib.pyplot.legend(title=step00.celltype_column, loc="upper right", ncols=4)
         matplotlib.pyplot.tight_layout()
 
         figure_list.append(f"{directory}/{step00.sample_column}-{step00.celltype_column}-Proportion-Bar.pdf")
