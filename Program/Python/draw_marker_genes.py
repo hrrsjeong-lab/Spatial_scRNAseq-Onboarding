@@ -48,11 +48,11 @@ if __name__ == "__main__":
     gene_list = sorted(set().union(*input_adata.uns[step00.marker_column].values()))
     print("Gene:", len(gene_list))
 
-    marker_cell_type_list = sorted(set(input_adata.obs[step00.celltype_column]) & set(input_adata.uns[step00.marker_column].keys()))
-    cell_type_list = marker_cell_type_list + ([step00.heterogeneous_value] if (step00.heterogeneous_value in set(input_adata.obs[step00.celltype_column])) else [])
+    marker_cell_type_list = sorted(set(input_adata.obs[f"{step00.celltype_column}_raw"]) & set(input_adata.uns[step00.marker_column].keys()))
+    cell_type_list = marker_cell_type_list + ([step00.heterogeneous_value] if (step00.heterogeneous_value in set(input_adata.obs[f"{step00.celltype_column}_raw"])) else [])
     cell_type_palette = dict(zip(marker_cell_type_list, itertools.cycle(matplotlib.colors.XKCD_COLORS))) | {step00.heterogeneous_value: step00.heterogeneous_color}
     print("Cell type:", len(cell_type_list), cell_type_list)
-    print("Cell type without markers:", sorted(set(input_adata.obs[step00.celltype_column]) - set(cell_type_list)))
+    print("Cell type without markers:", sorted(set(input_adata.obs[f"{step00.celltype_column}_raw"]) - set(cell_type_list)))
 
     sample_list = sorted(set(clustering_data[step00.sample_column]))
     sample_palette = dict(zip(sample_list, itertools.cycle(matplotlib.colors.TABLEAU_COLORS)))
@@ -68,7 +68,7 @@ if __name__ == "__main__":
     marker_score_data[f"{step00.marker_column}_argmax"] = marker_score_data.idxmax(axis="columns")
     print(marker_score_data)
 
-    clustering_data[step00.celltype_column] = input_adata.obs[step00.celltype_column]
+    clustering_data[step00.celltype_column] = input_adata.obs[f"{step00.celltype_column}_raw"]
     clustering_data = pandas.concat([clustering_data, marker_score_data], axis="columns", verify_integrity=True)
     print(clustering_data)
     print(pandas.crosstab(clustering_data[step00.celltype_column], clustering_data[f"{step00.marker_column}_argmax"]))
@@ -94,7 +94,7 @@ if __name__ == "__main__":
     with tempfile.TemporaryDirectory() as directory:
         figure_list: typing.List[str] = list()
 
-        fig, ax = matplotlib.pyplot.subplots(figsize=(48, 36))
+        fig, ax = matplotlib.pyplot.subplots(figsize=(24, 18))
 
         seaborn.heatmap(data=cluster_score_data, xticklabels=True, yticklabels=True, vmin=0.0, vmax=1.0, robust=True, cmap="YlOrRd", annot=True, fmt=".2f", annot_kws={"size": "xx-small"}, cbar=False, ax=ax)
 
@@ -110,7 +110,7 @@ if __name__ == "__main__":
         fig.savefig(figure_list[-1])
         matplotlib.pyplot.close(fig)
 
-        fig, ax = matplotlib.pyplot.subplots(figsize=(48, 36))
+        fig, ax = matplotlib.pyplot.subplots(figsize=(24, 18))
 
         seaborn.heatmap(data=cluster_counter_data, xticklabels=True, yticklabels=True, vmin=0, robust=True, cmap="YlOrRd", annot=True, fmt="d", annot_kws={"size": "xx-small"}, cbar=False, ax=ax)
 
@@ -126,7 +126,7 @@ if __name__ == "__main__":
         fig.savefig(figure_list[-1])
         matplotlib.pyplot.close(fig)
 
-        fig, ax = matplotlib.pyplot.subplots(figsize=(48, 36))
+        fig, ax = matplotlib.pyplot.subplots(figsize=(24, 18))
 
         seaborn.heatmap(data=cluster_counter_data.div(clustering_data[step00.clustering_column].astype(str).value_counts().reindex(cluster_list), axis="index"), xticklabels=True, yticklabels=True, vmin=0, robust=True, cmap="YlOrRd", annot=True, fmt=".2f", annot_kws={"size": "xx-small"}, cbar=False, ax=ax)
 
@@ -164,7 +164,7 @@ if __name__ == "__main__":
             fig.savefig(figure_list[-1])
             matplotlib.pyplot.close(fig)
 
-        fig, ax = matplotlib.pyplot.subplots(figsize=(36, 36))
+        fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
 
         seaborn.scatterplot(data=clustering_data, x=step00.projection_columns[0], y=step00.projection_columns[1], hue=step00.celltype_column, hue_order=cell_type_list, palette=cell_type_palette, rasterized=True, s=5, edgecolor=None, ax=ax)
 
@@ -183,7 +183,7 @@ if __name__ == "__main__":
         fig.savefig(figure_list[-1])
         matplotlib.pyplot.close(fig)
 
-        fig, ax = matplotlib.pyplot.subplots(figsize=(36, 36))
+        fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
 
         seaborn.scatterplot(data=clustering_data, x=step00.projection_columns[0], y=step00.projection_columns[1], hue=step00.celltype_column, hue_order=cell_type_list, palette=cell_type_palette, rasterized=True, s=5, edgecolor=None, ax=ax)
 
