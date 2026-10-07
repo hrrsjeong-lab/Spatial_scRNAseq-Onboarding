@@ -53,11 +53,14 @@ if __name__ == "__main__":
     input_adata.obsm[step00.marker_column] = pandas.DataFrame(marker_dict, index=input_adata.obs.index)
     print(input_adata.obsm[step00.marker_column])
 
+    rapids_singlecell.tl.leiden(input_adata, resolution=50, random_state=42, key_added="Over_clustering")
+    print("Over-clusters:", input_adata.obs["Over_clustering"].nunique())
+
     annotation_adata = scanpy.AnnData(X=input_adata.layers[step00.log_column].copy(), obs=input_adata.obs, var=input_adata.var)
     annotation_adata.obsp["connectivities"] = input_adata.obsp["connectivities"]
     annotation_adata.obsp["distances"] = input_adata.obsp["distances"]
     annotation_adata.uns["neighbors"] = input_adata.uns["neighbors"]
-    predictions = celltypist.annotate(annotation_adata, model, majority_voting=True, over_clustering=input_adata.obs[step00.clustering_column], use_GPU=True, min_prop=0.33)
+    predictions = celltypist.annotate(annotation_adata, model, majority_voting=True, use_GPU=True, over_clustering=input_adata.obs["Over_clustering"], min_prop=0.33)
 
     input_adata.obs[f"{step00.celltype_column}_raw"] = predictions.predicted_labels["predicted_labels"]
     input_adata.obs[step00.celltype_column] = list(map(step00.safe_celltype, predictions.predicted_labels["majority_voting"]))

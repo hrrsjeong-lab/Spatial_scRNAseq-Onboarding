@@ -49,10 +49,10 @@ if __name__ == "__main__":
     print("Gene:", len(gene_list))
 
     marker_cell_type_list = sorted(set(input_adata.obs[f"{step00.celltype_column}_raw"]) & set(input_adata.uns[step00.marker_column].keys()))
-    cell_type_list = marker_cell_type_list + ([step00.heterogeneous_value] if (step00.heterogeneous_value in set(input_adata.obs[f"{step00.celltype_column}_raw"])) else [])
-    cell_type_palette = dict(zip(marker_cell_type_list, itertools.cycle(matplotlib.colors.XKCD_COLORS))) | {step00.heterogeneous_value: step00.heterogeneous_color}
+    cell_type_list = sorted(set(input_adata.obs[f"{step00.celltype_column}_raw"]))
+    cell_type_palette = dict(zip(cell_type_list, itertools.cycle(matplotlib.colors.XKCD_COLORS))) | {step00.heterogeneous_value: step00.heterogeneous_color}
     print("Cell type:", len(cell_type_list), cell_type_list)
-    print("Cell type without markers:", sorted(set(input_adata.obs[f"{step00.celltype_column}_raw"]) - set(cell_type_list)))
+    print("Cell type without markers:", sorted(set(cell_type_list) - set(marker_cell_type_list)))
 
     sample_list = sorted(set(clustering_data[step00.sample_column]))
     sample_palette = dict(zip(sample_list, itertools.cycle(matplotlib.colors.TABLEAU_COLORS)))
