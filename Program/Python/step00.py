@@ -2,6 +2,7 @@
 step00.py: Basement for everything
 """
 import sys
+import re
 import typing
 import matplotlib.patches
 import matplotlib.patheffects
@@ -12,7 +13,6 @@ import pandas
 import scipy.sparse
 import tqdm
 
-tmpfs = "/tmpfs"
 cpus_error_message = "CPUs must be positive!!"
 default_error_message = "Something went wrong!!"
 
@@ -47,6 +47,20 @@ rest_color = "lightgray"
 
 heterogeneous_value = "Heterogeneous"
 heterogeneous_color = "dimgray"
+
+other_value = "Other"
+celltype_groups: typing.List[typing.Tuple[str, str]] = [
+    ("Epithelial", r"Enterocyte|Colonocyte|Goblet|BEST4|Paneth|^TA$|Stem cells|Tuft|Microfold|CLDN10|EECs|cells \(|NEUROG3|Distal progenitor|Proximal progenitor"),
+    ("Fibroblast", r"[Ss]tromal?\b|myofibroblast|T reticular|FDC|mLTo|Mesoderm"),
+    ("Mural", r"[Pp]ericyte|SMC|ICC"),
+    ("Mesothelium", r"Mesothelium"),
+    ("Endothelial", r"\bEC\b|capillary|LEC\d"),
+    ("Neural", r"[Gg]lia|ENCC|Branch|[Nn]euroblast"),
+    ("Plasma", r"plasma"),
+    ("B", r"\bB\b|GC cell|Pre-B|Pro-B"),
+    ("T&NK&ILC", r"\bT\b|Tmem|Treg|Tfh|Th1|Th17|MAIT|NK|gdT|ILC|CLP|CD4|CD8"),
+    ("Myeloid", r"[Mm]ono|[Mm]acrophage|DC|Mast"),
+]
 
 evaluation_list = ["Accuracy", "Balanced accuracy", "F1", "Fowlkes–Mallows index", "Informedness", "Markedness", "Negative predictive value", "Positive predictive value", "Precision", "Sensitivity", "Specificity", "Threat score"]
 
@@ -134,6 +148,13 @@ def safe_matrix(x):
 
 def safe_celltype(celltype: str) -> str:
     return celltype.replace("/", "&")
+
+
+def group_celltype(celltype: str) -> str:
+    for group, pattern in celltype_groups:
+        if re.search(pattern, celltype):
+            return group
+    return other_value
 
 
 def evaluate_confusion_matrix(confusion_matrix: numpy.ndarray) -> typing.Dict[str, float]:
