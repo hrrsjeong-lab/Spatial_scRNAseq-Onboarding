@@ -48,8 +48,8 @@ if __name__ == "__main__":
     gene_list = sorted(set().union(*input_adata.uns[step00.marker_column].values()))
     print("Gene:", len(gene_list))
 
-    marker_cell_type_list = sorted(set(input_adata.obs[f"{step00.celltype_column}_raw"]) & set(input_adata.uns[step00.marker_column].keys()))
-    cell_type_list = sorted(set(input_adata.obs[f"{step00.celltype_column}_raw"]))
+    marker_cell_type_list = sorted((set(input_adata.obs[step00.celltype_column]) - {step00.heterogeneous_value}) & set(input_adata.uns[step00.marker_column].keys()))
+    cell_type_list = sorted(set(input_adata.obs[step00.celltype_column]) - {step00.heterogeneous_value}) + ([step00.heterogeneous_value] if (step00.heterogeneous_value in set(input_adata.obs[step00.celltype_column])) else [])
     cell_type_palette = dict(zip(cell_type_list, itertools.cycle(matplotlib.colors.XKCD_COLORS))) | {step00.heterogeneous_value: step00.heterogeneous_color}
     print("Cell type:", len(cell_type_list), cell_type_list)
     print("Cell type without markers:", sorted(set(cell_type_list) - set(marker_cell_type_list)))
@@ -68,7 +68,7 @@ if __name__ == "__main__":
     marker_score_data[f"{step00.marker_column}_argmax"] = marker_score_data.idxmax(axis="columns")
     print(marker_score_data)
 
-    clustering_data[step00.celltype_column] = input_adata.obs[f"{step00.celltype_column}_raw"]
+    clustering_data[step00.celltype_column] = input_adata.obs[step00.celltype_column]
     clustering_data = pandas.concat([clustering_data, marker_score_data], axis="columns", verify_integrity=True)
     print(clustering_data)
     print(pandas.crosstab(clustering_data[step00.celltype_column], clustering_data[f"{step00.marker_column}_argmax"]))
@@ -143,7 +143,6 @@ if __name__ == "__main__":
         matplotlib.pyplot.close(fig)
 
         for cluster in tqdm.tqdm(cluster_list):
-            break
             cell_type = sorted(zip(cluster_score_data.loc[cluster, :], marker_cell_type_list))[-1][1]
 
             fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
