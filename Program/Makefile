@@ -31,18 +31,18 @@ LOGGING_DIR = 1>$(abspath $(@D)).log 2>&1
 LOGGING_TEE = 2>&1 | tee $(abspath $@).log
 
 all: test optimal step01 step02 step03 step04 step05 step06 step07 step08 step09 step10
-	@date | mail -s "[Slurm] Making jobs has been finished on $(shell hostname)" "jaewoong@gist.ac.kr"
+	@date | mail -s "[Slurm] Making $@ has been finished on $(shell hostname)" "jaewoong@gist.ac.kr"
 .PHONY: all
 
 clean:
 .PHONY: clean
 
 optimal: step01-optimal step02-optimal step03-optimal step04-optimal step05-optimal step06-optimal step07-optimal step08-optimal step09-optimal step10-optimal
-	@date | mail -s "[Slurm] Making jobs has been finished on $(shell hostname)" "jaewoong@gist.ac.kr"
+	@date | mail -s "[Slurm] Making $@ has been finished on $(shell hostname)" "jaewoong@gist.ac.kr"
 .PHONY: optimal
 
 test: step01-test step02-test step03-test step04-test step05-test step06-test step07-test step08-test step09-test step10-test
-	@date | mail -s "[Slurm] Making jobs has been finished on $(shell hostname)" "jaewoong@gist.ac.kr"
+	@date | mail -s "[Slurm] Making $@ has been finished on $(shell hostname)" "jaewoong@gist.ac.kr"
 .PHONY: test
 
 # Step 01 (Merge input)
