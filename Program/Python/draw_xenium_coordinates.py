@@ -57,19 +57,15 @@ if __name__ == "__main__":
 
         for sample in tqdm.tqdm(sample_list):
             drawing_data = coordinate_data.loc[(coordinate_data[step00.sample_column] == sample)]
-            minimum = numpy.min(drawing_data[[*step00.spatial_columns]].to_numpy()) - 500
-            maximum = numpy.max(drawing_data[[*step00.spatial_columns]].to_numpy()) + 500
 
             fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
 
             seaborn.scatterplot(data=drawing_data, x=step00.spatial_columns[0], y=step00.spatial_columns[1], hue=step00.celltype_column, hue_order=cell_type_list, palette=cell_type_palette, rasterized=True, s=5, edgecolor=None, ax=ax)
 
-            matplotlib.pyplot.xlim(minimum, maximum)
-            matplotlib.pyplot.ylim(minimum, maximum)
             matplotlib.pyplot.xlabel(f"{step00.spatial_columns[0]} (μm)")
             matplotlib.pyplot.ylabel(f"{step00.spatial_columns[1]} (μm)")
             matplotlib.pyplot.title(f"{sample} (Cell n={len(drawing_data)})")
-            matplotlib.pyplot.legend(loc="upper right")
+            matplotlib.pyplot.legend(loc="upper right", markerscale=10)
             matplotlib.pyplot.tight_layout()
 
             figure_list.append(f"{directory}/Scatter-{sample}.pdf")
@@ -101,8 +97,6 @@ if __name__ == "__main__":
 
             seaborn.histplot(data=drawing_data, x=step00.spatial_columns[0], y=step00.spatial_columns[1], stat="count", bins=100, cmap="YlOrRd", cbar=True, ax=ax)
 
-            matplotlib.pyplot.xlim(minimum, maximum)
-            matplotlib.pyplot.ylim(minimum, maximum)
             matplotlib.pyplot.xlabel(f"{step00.spatial_columns[0]} (μm)")
             matplotlib.pyplot.ylabel(f"{step00.spatial_columns[1]} (μm)")
             matplotlib.pyplot.title(f"{sample} (Cell n={len(drawing_data)})")
@@ -126,8 +120,6 @@ if __name__ == "__main__":
             points = matplotlib.pyplot.scatter(drawing_data[step00.spatial_columns[0]], drawing_data[step00.spatial_columns[1]], c=drawing_data["Density"], cmap="viridis", norm=matplotlib.colors.LogNorm(), s=15, linewidths=0, rasterized=True)
             fig.colorbar(points, ax=ax, shrink=0.7, label="Local density (cells/mm²)")
 
-            matplotlib.pyplot.xlim(minimum, maximum)
-            matplotlib.pyplot.ylim(minimum, maximum)
             matplotlib.pyplot.xlabel(f"{step00.spatial_columns[0]} (μm)")
             matplotlib.pyplot.ylabel(f"{step00.spatial_columns[1]} (μm)")
             matplotlib.pyplot.title(f"{sample} (Cell n={len(drawing_data)}, k={args.knn})")
