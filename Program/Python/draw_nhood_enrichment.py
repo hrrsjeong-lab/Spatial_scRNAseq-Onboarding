@@ -64,6 +64,11 @@ if __name__ == "__main__":
     sample_palette = dict(zip(sample_list, itertools.cycle(matplotlib.colors.TABLEAU_COLORS)))
     print("Sample:", len(sample_list), sample_list)
 
+    mean_degree_data = degree_data.pivot_table(index=step00.celltype_column, columns=step00.sample_column, values=degree_column, aggfunc="mean").reindex(index=cell_type_list, columns=sample_list)
+    isolated_cell_data = degree_data.assign(Isolated=(degree_data[degree_column] == 0)).pivot_table(index=step00.celltype_column, columns=step00.sample_column, values="Isolated", aggfunc="mean").reindex(index=cell_type_list, columns=sample_list)
+    print(mean_degree_data)
+    print(isolated_cell_data)
+
     matplotlib.use("Agg")
     matplotlib.rcParams.update(step00.matplotlib_parameters)
     seaborn.set_theme(context="poster", style="white", rc=step00.matplotlib_parameters)
@@ -105,7 +110,7 @@ if __name__ == "__main__":
             n_cells_dict[sample] = n_cells
             y_labels = [f"{cell_type} (n={n})" for cell_type, n in zip(cell_type_list, n_source)]
 
-            fig, ax = matplotlib.pyplot.subplots(figsize=(24, 24))
+            fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
 
             seaborn.heatmap(zscore, cmap="RdBu_r", vmin=-args.clip, vmax=args.clip, center=0.0, fmt=".0f", annot=True, annot_kws={"fontsize": "x-small"}, square=True, linewidths=0.5, linecolor="white", cbar=True, cbar_kws={"label": "Neighborhood enrichment (z-score)", "shrink": 0.7}, ax=ax)
 
@@ -122,7 +127,7 @@ if __name__ == "__main__":
             fig.savefig(figure_list[-1])
             matplotlib.pyplot.close(fig)
 
-            fig, ax = matplotlib.pyplot.subplots(figsize=(24, 24))
+            fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
 
             seaborn.heatmap(data=composition, cmap="Blues", vmin=0.0, vmax=1.0, center=None, fmt=".2f", annot=True, annot_kws={"fontsize": "x-small"}, square=True, linewidths=0.5, linecolor="white", cbar=True, cbar_kws={"label": "Fraction of neighbors", "shrink": 0.7}, ax=ax)
 
@@ -173,31 +178,34 @@ if __name__ == "__main__":
         fig.savefig(figure_list[-1])
         matplotlib.pyplot.close(fig)
 
-        fig, ax = matplotlib.pyplot.subplots(figsize=(32, 24))
+        for name, data, title in [("Mean", mean_degree_data, "Mean neighborhood degree"), ("Isolated", isolated_cell_data, "Fraction of isolated cells")]:
+            fig, ax = matplotlib.pyplot.subplots(figsize=(24, 18))
 
-        seaborn.violinplot(data=degree_data, x=step00.celltype_column, y=degree_column, hue=step00.sample_column, order=cell_type_list, hue_order=sample_list, palette=sample_palette, cut=0, density_norm="width", linewidth=3, ax=ax)
+            seaborn.heatmap(data=data, cmap="viridis", vmin=0.0, vmax=(1.0 if name == "Isolated" else None), annot=True, fmt=".2f", annot_kws={"fontsize": "xx-small"}, linewidths=0.5, linecolor="white", cbar=True, cbar_kws={"shrink": 0.7}, ax=ax)
 
-        matplotlib.pyplot.xlabel("Cell type")
-        matplotlib.pyplot.ylabel("Neighborhood degree")
-        matplotlib.pyplot.xticks(rotation="vertical")
+            matplotlib.pyplot.xticks(fontsize="x-small", rotation="vertical")
+            matplotlib.pyplot.yticks(fontsize="x-small", rotation="horizontal")
+            matplotlib.pyplot.xlabel(step00.sample_column)
+            matplotlib.pyplot.ylabel("Cell type")
+            matplotlib.pyplot.title(title, fontsize="small")
+            matplotlib.pyplot.tight_layout()
+
+            figure_list.append(f"{directory}/Degree-{name}-Heatmap.pdf")
+            fig.savefig(figure_list[-1])
+            figure_list.append(f"{directory}/Degree-{name}-Heatmap.png")
+            fig.savefig(figure_list[-1])
+            matplotlib.pyplot.close(fig)
+
+        fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
+
+        seaborn.barplot(data=isolated_data, x="fraction", y=step00.sample_column, order=sample_list, hue=step00.sample_column, hue_order=sample_list, palette=sample_palette, legend=False, orient="h", ax=ax)
+
+        matplotlib.pyplot.xlim(0.0, 1.0)
+        matplotlib.pyplot.xlabel("Fraction of isolated cells")
+        matplotlib.pyplot.ylabel(step00.sample_column)
+        matplotlib.pyplot.yticks(fontsize="x-small")
         matplotlib.pyplot.grid(True)
         matplotlib.pyplot.tight_layout()
-
-        figure_list.append(f"{directory}/Degree-Violin.pdf")
-        fig.savefig(figure_list[-1])
-        figure_list.append(f"{directory}/Degree-Violin.png")
-        fig.savefig(figure_list[-1])
-        matplotlib.pyplot.close(fig)
-
-        fig, ax = matplotlib.pyplot.subplots(figsize=(24, 18))
-
-        seaborn.barplot(data=isolated_data, x=step00.sample_column, y="fraction", order=sample_list, hue=step00.sample_column, hue_order=sample_list, palette=sample_palette, legend=False, ax=ax)
-
-        matplotlib.pyplot.xlabel(step00.sample_column)
-        matplotlib.pyplot.ylabel("Fraction of isolated cells")
-        matplotlib.pyplot.grid(True)
-        matplotlib.pyplot.tight_layout()
-
         figure_list.append(f"{directory}/Degree-Isolated.pdf")
         fig.savefig(figure_list[-1])
         figure_list.append(f"{directory}/Degree-Isolated.png")
