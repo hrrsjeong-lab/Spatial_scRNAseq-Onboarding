@@ -1,14 +1,15 @@
 # Variables
 SHELL = /bin/bash -O globstar
+.SHELLFLAGS = -o pipefail -c
 CPUS = 10
 MEMS = 100
 MEM_PER_CPU = $(shell echo '$(MEMS)/$(CPUS)' | bc)
 
 # Programs
-SLURM = srun --chdir=$(abspath .) --cpus-per-task=$(CPUS) --export=ALL --job-name="scRNA_$(@F)" --mem=$(MEMS)G --mail-user="jaewoong@gist.ac.kr" --mail-type=FAIL
+SLURM = srun --chdir=$(abspath .) --cpus-per-task=$(CPUS) --export=ALL --job-name="Spatial_$(@F)" --mem=$(MEMS)G --mail-user="jaewoong@gist.ac.kr" --mail-type=END,FAIL
 GPUS = --gpus=1
 PYTHON = /home/Live/jaewoong/Spatial_scRNAseq-Onboarding/.venv/bin/python3 -B
-R = /usr/bin/Rscript
+R = /usr/bin/env RENV_CONFIG_SYNCHRONIZED_CHECK=FALSE /usr/bin/Rscript
 rwildcard = $(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(subst *,%,$2),$d))
 product = $(foreach x,$1,$(addprefix $x.,$2))
 
@@ -17,7 +18,7 @@ HUMAN_FASTA = /home/Share/References/chm13/chm13v2.0.maskedY.fasta
 MATRIX_XLSX = Metadata/GSE311609_series_matrix.xlsx
 
 # Constants
-CANCERS = Test Crohn Kidney#Lung_5K Lung Breast
+CANCERS = Test Crohn Kidney #Lung_5K Lung Breast
 OPTIMAL = Crohn
 DEGS = 01_Seurat 02_Cell_ranger
 PROJECTIONS = 01_umap 02_tsne 03_phate 04_trimap
@@ -30,15 +31,18 @@ LOGGING_DIR = 1>$(abspath $(@D)).log 2>&1
 LOGGING_TEE = 2>&1 | tee $(abspath $@).log
 
 all: test optimal step01 step02 step03 step04 step05 step06 step07 step08 step09 step10
+	@date | mail -s "[Slurm] Making jobs has been finished on $(shell hostname)" "jaewoong@gist.ac.kr"
 .PHONY: all
 
 clean:
 .PHONY: clean
 
 optimal: step01-optimal step02-optimal step03-optimal step04-optimal step05-optimal step06-optimal step07-optimal step08-optimal step09-optimal step10-optimal
+	@date | mail -s "[Slurm] Making jobs has been finished on $(shell hostname)" "jaewoong@gist.ac.kr"
 .PHONY: optimal
 
 test: step01-test step02-test step03-test step04-test step05-test step06-test step07-test step08-test step09-test step10-test
+	@date | mail -s "[Slurm] Making jobs has been finished on $(shell hostname)" "jaewoong@gist.ac.kr"
 .PHONY: test
 
 # Step 01 (Merge input)
@@ -208,6 +212,15 @@ Output/08_Marker_genes/References/07_CRC.pkl: | Output/08_Marker_genes/Reference
 Output/08_Marker_genes/References/08_Crohn.pkl: | Output/08_Marker_genes/References
 	wget "https://celltypist.cog.sanger.ac.uk/models/Intestinal_Tract_Elmentaite/v1/Cells_Intestinal_Tract.pkl" -O $(abspath $@) $(LOGGING)
 
+Output/08_Marker_genes/References/McGregor2025_Fibroblasts/obs.csv.gz: R/export_seurat_reference.R /home/Store/PMC12804086/scRNA-seq/scrna_seq_meta_analysis_fibroblasts.RDS | Output/08_Marker_genes/References
+	$(SLURM) $(R) $(abspath $^) $(abspath $(@D)) $(LOGGING)
+
+Output/08_Marker_genes/References/McGregor2025_Fibroblasts.h5ad: Python/import_seurat_export.py Output/08_Marker_genes/References/McGregor2025_Fibroblasts/obs.csv.gz
+	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
+
+Output/08_Marker_genes/References/09_McGregor2025_Fibroblasts.pkl: Python/train_celltype_reference_3.py Output/08_Marker_genes/References/McGregor2025_Fibroblasts.h5ad Output/03_QC_filtering/Crohn.hdf5
+	$(SLURM) $(PYTHON) $(abspath $^ $@) --label "CellAnnotation.Level2" --cpus $(CPUS) $(LOGGING)
+
 Output/08_Marker_genes/%.01_Human_Lung_Atlas.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/01_Human_Lung_Atlas.pkl
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
@@ -227,10 +240,13 @@ Output/08_Marker_genes/%.07_CRC.hdf5: Python/select_marker_genes.py Output/07_Cl
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 Output/08_Marker_genes/%.08_Crohn.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/08_Crohn.pkl
-	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING_TEE)
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
+
+Output/08_Marker_genes/%.09_McGregor2025_Fibroblasts.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/09_McGregor2025_Fibroblasts.pkl
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 Output/08_Marker_genes/Figures/%.zip: Python/draw_marker_genes.py Output/08_Marker_genes/%.hdf5 | Output/08_Marker_genes/Figures
-	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING_TEE)
+	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 step08-test: Output/08_Marker_genes/References/08_Crohn.pkl Output/08_Marker_genes/Test.01_Seurat.01_umap.01_Leiden.08_Crohn.hdf5 Output/08_Marker_genes/Figures/Test.01_Seurat.01_umap.01_Leiden.08_Crohn.zip
 step08-optimal: Output/08_Marker_genes/References/08_Crohn.pkl Output/08_Marker_genes/$(OPTIMAL).01_Seurat.01_umap.01_Leiden.08_Crohn.hdf5 Output/08_Marker_genes/Figures/$(OPTIMAL).01_Seurat.01_umap.01_Leiden.08_Crohn.zip
@@ -242,7 +258,7 @@ Output/09_Xenium/Figures:
 	mkdir -p $@
 
 Output/09_Xenium/Figures/%.zip: Python/draw_xenium_coordinates.py Output/08_Marker_genes/%.hdf5 | Output/09_Xenium/Figures
-	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING_TEE)
+	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 step09-test: Output/09_Xenium/Figures/Test.01_Seurat.01_umap.01_Leiden.08_Crohn.zip
 step09-optimal: Output/09_Xenium/Figures/$(OPTIMAL).01_Seurat.01_umap.01_Leiden.08_Crohn.zip
