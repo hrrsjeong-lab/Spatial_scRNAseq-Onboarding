@@ -1,5 +1,5 @@
 import argparse
-import collections
+import numpy
 import celltypist
 import celltypist.models
 import pandas
@@ -40,10 +40,16 @@ if __name__ == "__main__":
     gene_set = set(gene_list)
     print("Gene:", len(gene_list))
 
-    group_marker_dict = collections.defaultdict(set)
-    for cell_type in tqdm.tqdm(sorted(model.cell_types)):
-        group_marker_dict[group_dict[cell_type]] |= set(model.extract_top_markers(cell_type, top_n=10)) & gene_set
+    feature_array = numpy.asarray(model.features)
+    cell_type_array = numpy.asarray(model.cell_types)
+    panel_mask = numpy.isin(feature_array, sorted(gene_set))
+    print("Model features on panel:", int(panel_mask.sum()), "/", len(feature_array))
 
+    group_marker_dict = dict()
+    for group in tqdm.tqdm(sorted(set(group_dict.values()))):
+        member_mask = numpy.array([group_dict[cell_type] == group for cell_type in cell_type_array])
+        coefficient = numpy.where(panel_mask, model.classifier.coef_[member_mask].mean(axis=0), -numpy.inf)
+        group_marker_dict[group] = set(feature_array[numpy.argsort(-coefficient)[:10]])
     marker_dict = dict()
     input_adata.uns[step00.marker_column] = dict()
 

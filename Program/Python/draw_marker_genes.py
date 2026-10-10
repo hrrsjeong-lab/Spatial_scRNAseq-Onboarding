@@ -68,6 +68,10 @@ if __name__ == "__main__":
     marker_score_data[f"{step00.marker_column}_argmax"] = marker_score_data.idxmax(axis="columns")
     print(marker_score_data)
 
+    marker_cluster_data = marker_score_data.loc[:, marker_cell_type_list].groupby(clustering_data[step00.clustering_column].astype(str)).median().loc[cluster_list, :]
+    marker_cluster_data = (marker_cluster_data - marker_cluster_data.mean()) / marker_cluster_data.std()
+    print(marker_cluster_data)
+
     clustering_data[step00.celltype_column] = input_adata.obs[step00.celltype_column]
     clustering_data = pandas.concat([clustering_data, marker_score_data], axis="columns", verify_integrity=True)
     print(clustering_data)
@@ -142,12 +146,28 @@ if __name__ == "__main__":
         fig.savefig(figure_list[-1])
         matplotlib.pyplot.close(fig)
 
+        fig, ax = matplotlib.pyplot.subplots(figsize=(24, 18))
+
+        seaborn.heatmap(data=marker_cluster_data, xticklabels=True, yticklabels=True, center=0, cmap="RdBu_r", annot=True, fmt=".1f", annot_kws={"size": "xx-small"}, cbar=False, ax=ax)
+
+        matplotlib.pyplot.xticks(fontsize="xx-small")
+        matplotlib.pyplot.yticks(fontsize="xx-small", rotation="horizontal")
+        matplotlib.pyplot.xlabel(f"{step00.marker_column} score (z across clusters)")
+        matplotlib.pyplot.ylabel(step00.clustering_column)
+        matplotlib.pyplot.tight_layout()
+
+        figure_list.append(f"{directory}/{step00.marker_column}-Cluster-Heatmap.pdf")
+        fig.savefig(figure_list[-1])
+        figure_list.append(f"{directory}/{step00.marker_column}-Cluster-Heatmap.png")
+        fig.savefig(figure_list[-1])
+        matplotlib.pyplot.close(fig)
+
         for cluster in tqdm.tqdm(cluster_list):
             cell_type = sorted(zip(cluster_score_data.loc[cluster, :], marker_cell_type_list))[-1][1]
 
             fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
 
-            seaborn.scatterplot(data=clustering_data.sort_values(cell_type), x=step00.projection_columns[0], y=step00.projection_columns[1], hue=cell_type, palette="Reds", legend="brief", rasterized=True, s=5, edgecolor=None, ax=ax)
+            seaborn.scatterplot(data=clustering_data.sort_values(cell_type), x=step00.projection_columns[0], y=step00.projection_columns[1], hue=cell_type, hue_norm=tuple(numpy.percentile(clustering_data[cell_type], [1, 99])), palette="Reds", legend="brief", rasterized=True, s=5, edgecolor=None, ax=ax)
             step00.confidence_ellipse(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[0]], clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[1]], ax=ax, edgecolor="black", linewidth=2.5)
             matplotlib.pyplot.text(numpy.mean(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[0]]), numpy.mean(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[1]]), cluster, horizontalalignment="center", verticalalignment="center", fontsize="medium", color="black", path_effects=step00.path_effects)
 
