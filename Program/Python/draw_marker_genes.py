@@ -164,28 +164,34 @@ if __name__ == "__main__":
 
         for cluster in tqdm.tqdm(cluster_list):
             cell_type = sorted(zip(cluster_score_data.loc[cluster, :], marker_cell_type_list))[-1][1]
+            order = numpy.argsort(clustering_data[cell_type].to_numpy(), kind="stable")
+            vmin, vmax = numpy.percentile(clustering_data[cell_type], [1, 99])
+            mask = (clustering_data[step00.clustering_column] == cluster).to_numpy()
 
             fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
 
-            seaborn.scatterplot(data=clustering_data.sort_values(cell_type), x=step00.projection_columns[0], y=step00.projection_columns[1], hue=cell_type, hue_norm=tuple(numpy.percentile(clustering_data[cell_type], [1, 99])), palette="Reds", legend="brief", rasterized=True, s=5, edgecolor=None, ax=ax)
-            step00.confidence_ellipse(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[0]], clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[1]], ax=ax, edgecolor="black", linewidth=2.5)
-            matplotlib.pyplot.text(numpy.mean(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[0]]), numpy.mean(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[1]]), cluster, horizontalalignment="center", verticalalignment="center", fontsize="medium", color="black", path_effects=step00.path_effects)
+            scatter = ax.scatter(clustering_data[step00.projection_columns[0]].to_numpy()[order], clustering_data[step00.projection_columns[1]].to_numpy()[order], c=clustering_data[cell_type].to_numpy()[order], cmap="Reds", norm=matplotlib.colors.Normalize(vmin=vmin, vmax=vmax), s=5, linewidths=0, rasterized=True)
+            colorbar = fig.colorbar(scatter, ax=ax, location="bottom", fraction=0.03, pad=0.02)
+            colorbar.set_label(f"{cell_type} score", fontsize="small")
+            colorbar.ax.tick_params(labelsize="xx-small")
+            step00.confidence_ellipse(clustering_data.loc[mask, step00.projection_columns[0]], clustering_data.loc[mask, step00.projection_columns[1]], ax=ax, edgecolor="black", linewidth=2.5)
+            ax.text(numpy.mean(clustering_data.loc[mask, step00.projection_columns[0]]), numpy.mean(clustering_data.loc[mask, step00.projection_columns[1]]), cluster, horizontalalignment="center", verticalalignment="center", fontsize="medium", color="black", path_effects=step00.path_effects)
 
             ax.set_xticklabels([])
             ax.set_yticklabels([])
-            matplotlib.pyplot.title(f"{cell_type} (Gene n={len(input_adata.uns[step00.marker_column][cell_type])})", fontsize="small")
-            matplotlib.pyplot.legend(loc="lower left", title="", markerscale=10)
-            matplotlib.pyplot.tight_layout()
+            ax.set_title(f"{cell_type} (Gene n={len(input_adata.uns[step00.marker_column][cell_type])})", fontsize="small")
+            fig.tight_layout()
 
             figure_list.append(f"{directory}/Cluster-{cluster}.pdf")
             fig.savefig(figure_list[-1])
             figure_list.append(f"{directory}/Cluster-{cluster}.png")
             fig.savefig(figure_list[-1])
             matplotlib.pyplot.close(fig)
+            break
 
         fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
 
-        seaborn.scatterplot(data=clustering_data, x=step00.projection_columns[0], y=step00.projection_columns[1], hue=step00.celltype_column, hue_order=cell_type_list, palette=cell_type_palette, rasterized=True, s=5, edgecolor=None, ax=ax)
+        seaborn.scatterplot(data=clustering_data, x=step00.projection_columns[0], y=step00.projection_columns[1], hue=step00.celltype_column, hue_order=cell_type_list, palette=cell_type_palette, rasterized=True, s=5, edgecolor=None, linewidth=0, ax=ax)
 
         for cell_type in tqdm.tqdm(marker_cell_type_list):
             step00.confidence_ellipse(clustering_data.loc[(clustering_data[step00.celltype_column] == cell_type), step00.projection_columns[0]], clustering_data.loc[(clustering_data[step00.celltype_column] == cell_type), step00.projection_columns[1]], ax=ax, edgecolor="black", linewidth=2.5)
@@ -204,11 +210,10 @@ if __name__ == "__main__":
 
         fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
 
-        seaborn.scatterplot(data=clustering_data, x=step00.projection_columns[0], y=step00.projection_columns[1], hue=step00.celltype_column, hue_order=cell_type_list, palette=cell_type_palette, rasterized=True, s=5, edgecolor=None, ax=ax)
+        seaborn.scatterplot(data=clustering_data, x=step00.projection_columns[0], y=step00.projection_columns[1], hue=step00.celltype_column, hue_order=cell_type_list, palette=cell_type_palette, rasterized=True, s=5, edgecolor=None, linewidth=0, ax=ax)
 
         for cluster in tqdm.tqdm(cluster_list):
-            step00.confidence_ellipse(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[0]], clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[1]], ax=ax, edgecolor="black", linewidth=2.5)
-            matplotlib.pyplot.text(numpy.mean(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[0]]), numpy.mean(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[1]]), cluster, horizontalalignment="center", verticalalignment="center", fontsize="small", color="black", path_effects=step00.path_effects)
+            matplotlib.pyplot.text(numpy.mean(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[0]]), numpy.mean(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[1]]), cluster, horizontalalignment="center", verticalalignment="center", fontsize="x-small", color="black", path_effects=step00.path_effects)
 
         ax.set_xticklabels([])
         ax.set_yticklabels([])
@@ -230,7 +235,7 @@ if __name__ == "__main__":
         matplotlib.pyplot.ylabel("Cell count")
         matplotlib.pyplot.xticks(range(len(cell_type_list)), cell_type_list, fontsize="xx-small", rotation="vertical")
         matplotlib.pyplot.yticks(fontsize="xx-small")
-        matplotlib.pyplot.legend(title=step00.celltype_column, loc="upper right", ncols=len(cluster_list) // 4 + 1)
+        matplotlib.pyplot.legend(title=step00.clustering_column, loc="upper right", ncols=len(cluster_list) // 4 + 1)
         matplotlib.pyplot.tight_layout()
 
         figure_list.append(f"{directory}/{step00.celltype_column}-{step00.clustering_column}-Count-Bar.pdf")
