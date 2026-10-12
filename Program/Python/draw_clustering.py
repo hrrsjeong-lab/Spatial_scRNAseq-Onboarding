@@ -108,7 +108,7 @@ if __name__ == "__main__":
         matplotlib.pyplot.ylabel("Cell count")
         matplotlib.pyplot.xticks(range(len(sample_list)), sample_list, rotation="vertical")
         matplotlib.pyplot.yticks(fontsize="xx-small")
-        matplotlib.pyplot.legend(title=step00.clustering_column, loc="upper right", ncols=len(cluster_list) // 4)
+        matplotlib.pyplot.legend(title=step00.clustering_column, loc="upper right", ncols=len(cluster_list) // 4 + 1)
         matplotlib.pyplot.tight_layout()
 
         figure_list.append(f"{directory}/{step00.clustering_column}-Count.pdf")
@@ -126,7 +126,7 @@ if __name__ == "__main__":
         matplotlib.pyplot.ylabel("Cell proportion")
         matplotlib.pyplot.xticks(range(len(sample_list)), sample_list, rotation="vertical")
         matplotlib.pyplot.yticks(fontsize="xx-small")
-        matplotlib.pyplot.legend(title=step00.clustering_column, loc="upper right", ncols=len(cluster_list) // 4)
+        matplotlib.pyplot.legend(title=step00.clustering_column, loc="upper right", ncols=len(cluster_list) // 4 + 1)
         matplotlib.pyplot.tight_layout()
 
         figure_list.append(f"{directory}/{step00.clustering_column}-Proportion.pdf")
