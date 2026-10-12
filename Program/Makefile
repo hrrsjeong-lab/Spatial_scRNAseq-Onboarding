@@ -4,7 +4,6 @@ SHELL = /bin/bash -O globstar
 CPUS = 10
 MEMS = 100
 MEM_PER_CPU = $(shell echo '$(MEMS)/$(CPUS)' | bc)
-PROJECT = Spatial
 
 # Programs
 SLURM = srun --chdir=$(abspath .) --cpus-per-task=$(CPUS) --export=ALL --job-name="Spatial_$(@F)" --mem=$(MEMS)G --mail-user="jaewoong@gist.ac.kr" --mail-type=END,FAIL
@@ -19,7 +18,8 @@ HUMAN_FASTA = /home/Share/References/chm13/chm13v2.0.maskedY.fasta
 MATRIX_XLSX = Metadata/GSE311609_series_matrix.xlsx
 
 # Constants
-CANCERS = Test Crohn Kidney #Lung_5K Lung Breast
+PROJECT = Spatial
+CANCERS = Test Crohn #Kidney Lung_5K Lung Breast
 OPTIMAL = Crohn
 DEGS = 01_Seurat 02_Cell_ranger
 PROJECTIONS = 01_umap 02_tsne 03_phate 04_trimap
