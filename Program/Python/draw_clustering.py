@@ -139,7 +139,8 @@ if __name__ == "__main__":
 
         seaborn.scatterplot(data=clustering_data, x=step00.projection_columns[0], y=step00.projection_columns[1], hue=step00.clustering_column, palette=cluster_palette, legend=False, rasterized=True, s=5, edgecolor=None, ax=ax)
         for cluster in tqdm.tqdm(cluster_list):
-            matplotlib.pyplot.text(numpy.mean(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[0]]), numpy.mean(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[1]]), cluster, color="black", fontsize="x-small", horizontalalignment="center", verticalalignment="center", path_effects=step00.path_effects)
+            matplotlib.pyplot.text(numpy.mean(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[0]]), numpy.mean(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[1]]), cluster, color="black", fontsize="small", horizontalalignment="center", verticalalignment="center", path_effects=step00.path_effects)
+            step00.confidence_ellipse(clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[0]], clustering_data.loc[(clustering_data[step00.clustering_column] == cluster), step00.projection_columns[1]], ax, edgecolor="black", linewidth=2.5)
 
         ax.set_xticklabels([])
         ax.set_yticklabels([])
