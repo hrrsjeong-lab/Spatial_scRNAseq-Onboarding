@@ -32,6 +32,8 @@ log_column = "logNorm"
 rank_columns = ["names", "scores", "pvals_adj", "pts", "logfoldchanges"]
 pca_key = "X_pca"
 harmony_key = "X_pca_harmony"
+sketch_key = "X_pca_harmony_sketch"
+sketch_column = "Sketch"
 projection_key = "X_projection"
 projection_columns = ("Axis-1", "Axis-2")
 clustering_column = "Clustering"
@@ -41,6 +43,7 @@ spatial_columns = ("x", "y")
 spatial_key = "spatial"
 connectivity_key = f"{spatial_key}_connectivities"
 neighborhood_column = "Neighborhood"
+niche_column = "X_niche"
 
 rest_value = "Rest"
 rest_color = "lightgray"

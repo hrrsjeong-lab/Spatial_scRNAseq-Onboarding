@@ -77,8 +77,8 @@ if __name__ == "__main__":
             score = leverage_score(data[index], input_adata.n_obs, rng, n_sketch=args.sketch_cells)
             sketch_mask[rng.choice(index, size=args.sketch_cells, replace=False, p=score / score.sum())] = True
 
-    input_adata.obs["Sketch"] = sketch_mask
-    print(pandas.crosstab(input_adata.obs[step00.sample_column], input_adata.obs["Sketch"]))
+    input_adata.obs[step00.sketch_column] = sketch_mask
+    print(pandas.crosstab(input_adata.obs[step00.sample_column], input_adata.obs[step00.sketch_column]))
 
     sketch_data = data[sketch_mask].toarray()
     mean = sketch_data.mean(axis=0)
