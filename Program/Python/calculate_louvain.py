@@ -41,11 +41,12 @@ if __name__ == "__main__":
 
     parser.add_argument("input", help="Input HDF5 file", type=str)
     parser.add_argument("output", help="Output HDF5 file", type=str)
-    parser.add_argument("--dims", help="Number of Harmony dimensions (Seurat FindNeighbors dims)", type=int, default=30)
+    parser.add_argument("--dims", help="Harmony dimensions as start:end (Seurat FindNeighbors dims)", type=str, default="1:30")
     parser.add_argument("--neighbors", help="Number of neighbors for the sketch SNN graph (Seurat k.param)", type=int, default=20)
     parser.add_argument("--prune", help="Jaccard cutoff for SNN edges (Seurat prune.SNN)", type=float, default=1 / 15)
     parser.add_argument("--resolution", help="Fixed resolution (Seurat FindClusters resolution); search with --max-clusters if omitted", type=float, default=None)
-    parser.add_argument("--transfer-neighbors", help="Number of sketch neighbors for label transfer (Seurat k.weight)", type=int, default=50)
+    parser.add_argument("--transfer-neighbors", help="Number of sketch neighbors for label transfer (Seurat TransferSketchLabels k)", type=int, default=50)
+    parser.add_argument("--transfer-dims", help="Full Harmony dimensions as start:end for label transfer (Seurat TransferSketchLabels dims); same as --dims if omitted", type=str, default=None)
     parser.add_argument("--max-clusters", help="Maximum number of clusters", type=int, default=30)
 
     args = parser.parse_args()
@@ -53,11 +54,14 @@ if __name__ == "__main__":
     step00.check_suffix(args.input, {".hdf5", ".h5"})
     step00.check_suffix(args.output, {".hdf5", ".h5"})
 
+    dims = step00.parse_dims(args.dims)
+    transfer_dims = step00.parse_dims(args.dims if (args.transfer_dims is None) else args.transfer_dims)
+
     input_adata = scanpy.read_h5ad(args.input)
     print(input_adata)
 
     sketch_mask = input_adata.obs[step00.sketch_column].to_numpy(dtype=bool)
-    sketch_adata = anndata.AnnData(obs=input_adata.obs.loc[sketch_mask, [step00.sample_column]].copy(), obsm={step00.harmony_key: numpy.asarray(input_adata.obsm[step00.sketch_key])[sketch_mask, :args.dims]})
+    sketch_adata = anndata.AnnData(obs=input_adata.obs.loc[sketch_mask, [step00.sample_column]].copy(), obsm={step00.harmony_key: numpy.asarray(input_adata.obsm[step00.sketch_key])[sketch_mask, dims]})
     snn = seurat_snn(sketch_adata.obsm[step00.harmony_key], args.neighbors, args.prune)
     print("SNN graph:", snn.shape, "edges per cell:", snn.nnz / snn.shape[0], "min weight:", snn.data.min())
 
@@ -77,7 +81,7 @@ if __name__ == "__main__":
     label_list = numpy.asarray(sorted(set(sketch_labels)))
     codes = numpy.searchsorted(label_list, sketch_labels)
 
-    harmony_full = numpy.asarray(input_adata.obsm[step00.harmony_key])[:, :args.dims]
+    harmony_full = numpy.asarray(input_adata.obsm[step00.harmony_key])[:, transfer_dims]
     distances, indices = nearest_neighbors(harmony_full[sketch_mask], harmony_full, args.transfer_neighbors)
     ratio = numpy.divide(distances, distances[:, -1:], out=numpy.zeros_like(distances), where=(distances[:, -1:] > 0))
     weights = 1.0 - numpy.exp(-(1.0 - ratio) / 4.0)
@@ -95,7 +99,7 @@ if __name__ == "__main__":
     input_adata.obs[step00.clustering_column] = pandas.Categorical(labels.map(mapping), categories=[str(i) for i in range(len(order))])
     input_adata.obs[f"{step00.clustering_column}_score"] = probability.max(axis=1)
     input_adata.obs[f"{step00.clustering_column}_sketch"] = pandas.Series(sketch_labels, index=sketch_adata.obs_names).map(mapping).reindex(input_adata.obs_names).astype("category")
-    input_adata.uns[step00.clustering_column] = {"selected_resolution": selected, "n_clusters": {str(r): int(n) for r, n in zip(summary_data["Resolution"], summary_data["Clusters"])}, "dims": args.dims, "neighbors": args.neighbors, "prune": args.prune, "transfer_neighbors": args.transfer_neighbors}
+    input_adata.uns[step00.clustering_column] = {"selected_resolution": selected, "n_clusters": {str(r): int(n) for r, n in zip(summary_data["Resolution"], summary_data["Clusters"])}, "dims": args.dims, "neighbors": args.neighbors, "prune": args.prune, "transfer_dims": (args.dims if (args.transfer_dims is None) else args.transfer_dims), "transfer_neighbors": args.transfer_neighbors}
 
     print(input_adata.obs[step00.clustering_column].value_counts())
     print(input_adata.obs[f"{step00.clustering_column}_score"].describe())

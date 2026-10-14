@@ -12,6 +12,8 @@ import seaborn
 import tqdm
 import step00
 
+log_columns = {"variances"}
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -35,22 +37,29 @@ if __name__ == "__main__":
     value_columns = [column for column in tqdm.tqdm(["dispersions", "dispersions_norm", "variances", "variances_norm"]) if column in input_adata.var.columns]
     print("Value columns:", value_columns)
 
+    var_data = input_adata.var.copy()
+    plot_data_dict = dict()
+    for column in tqdm.tqdm(value_columns):
+        plot_data_dict[column] = var_data.loc[(var_data["means"] > 0) & (var_data[column] > 0)] if (column in log_columns) else var_data
+        print(column, "genes plotted:", len(plot_data_dict[column]), "/", len(var_data), "(zero mean or variance excluded on log scale)" if (column in log_columns) else "")
+
     with tempfile.TemporaryDirectory() as directory:
         figure_list: typing.List[str] = list()
 
         for y in tqdm.tqdm(value_columns):
+            plot_data = plot_data_dict[y]
             fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
 
-            seaborn.scatterplot(data=input_adata.var, x="means", y=y, hue="highly_variable", hue_order=[True, False], palette={False: "gainsboro", True: "hotpink"}, legend="full", rasterized=True, s=40, edgecolor=None, ax=ax)
-            if y == "variances":
+            seaborn.scatterplot(data=plot_data, x="means", y=y, hue="highly_variable", hue_order=[True, False], palette={False: "gainsboro", True: "hotpink"}, legend="full", rasterized=True, s=40, edgecolor=None, ax=ax)
+            if y in log_columns:
                 ax.set_xscale("log")
                 ax.set_yscale("log")
 
-            total_num = len(input_adata.var)
-            variable_num = len(input_adata.var[(input_adata.var["highly_variable"])])
+            total_num = len(var_data)
+            variable_num = len(var_data[(var_data["highly_variable"])])
 
             texts = list()
-            for index, row in tqdm.tqdm(input_adata.var[(input_adata.var["highly_variable"])].sort_values(y, ascending=False).iterrows(), position=1, leave=False):
+            for index, row in tqdm.tqdm(plot_data[(plot_data["highly_variable"])].sort_values(y, ascending=False).iterrows(), position=1, leave=False):
                 texts.append(matplotlib.pyplot.text(row["means"], row[y], index, color="black", fontsize="xx-small", horizontalalignment="center", verticalalignment="center", path_effects=step00.path_effects))
 
                 if len(texts) > 10:
@@ -73,7 +82,7 @@ if __name__ == "__main__":
         for y in tqdm.tqdm(value_columns):
             fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
 
-            seaborn.histplot(data=input_adata.var, x="means", y=y, stat="count", bins=100, cmap="YlOrRd", cbar=True, log_scale=(y == "variances"), ax=ax)
+            seaborn.histplot(data=plot_data_dict[y], x="means", y=y, stat="count", bins=100, cmap="YlOrRd", cbar=True, log_scale=(y in log_columns), ax=ax)
 
             matplotlib.pyplot.xlabel("Mean expression")
             matplotlib.pyplot.ylabel("Variance in expression")
@@ -88,9 +97,9 @@ if __name__ == "__main__":
         for x in tqdm.tqdm(value_columns):
             fig, ax = matplotlib.pyplot.subplots(figsize=(24, 18))
 
-            seaborn.histplot(data=input_adata.var, x=x, stat="percent", bins=100, kde=True, log_scale=(x == "variances"), ax=ax)
+            seaborn.histplot(data=plot_data_dict[x], x=x, stat="percent", bins=100, kde=True, log_scale=(x in log_columns), ax=ax)
 
-            y = input_adata.var[x]
+            y = plot_data_dict[x][x]
             s = f"Min–Max: {numpy.min(y):+.2f}–{numpy.max(y):+.2f};"
             s += f"Mean±Std: {numpy.mean(y):.2f}±{numpy.std(y):.2f}"
 
