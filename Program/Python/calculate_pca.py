@@ -138,6 +138,9 @@ if __name__ == "__main__":
         transform = numpy.linalg.pinv((data[atom] @ feature_sketch).toarray()) @ sketch_harmony[sketch_position[atom]]
         harmony_embedding[index] = (data[index] @ feature_sketch) @ transform
 
+    if step00.pca_key in input_adata.obsm:
+        input_adata.obsm[f"{step00.pca_key}_authors"] = input_adata.obsm[step00.pca_key]
+
     input_adata.obsm[step00.pca_key] = pca_embedding
     input_adata.obsm[step00.harmony_key] = harmony_embedding
     input_adata.obsm[step00.sketch_key] = numpy.where(sketch_mask[:, None], sketch_harmony[numpy.maximum(sketch_position, 0)], numpy.nan).astype(numpy.float64)

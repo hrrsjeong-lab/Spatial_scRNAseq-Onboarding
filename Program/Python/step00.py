@@ -181,3 +181,10 @@ def evaluate_confusion_matrix(confusion_matrix: numpy.ndarray) -> typing.Dict[st
     answer["Threat score"] = true_positive / (true_positive + false_negative + false_positive)
     answer["Fowlkes–Mallows index"] = numpy.sqrt(answer["Positive predictive value"] * answer["Sensitivity"])
     return answer
+
+
+def parse_dims(dims: str) -> slice:
+    start, end = (int(value) for value in dims.split(":")) if (":" in dims) else (1, int(dims))
+    if not (1 <= start <= end):
+        raise ValueError(f"Invalid dims {dims}!!")
+    return slice(start - 1, end)
