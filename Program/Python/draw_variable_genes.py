@@ -32,13 +32,19 @@ if __name__ == "__main__":
     matplotlib.rcParams.update(step00.matplotlib_parameters)
     seaborn.set_theme(context="poster", style="whitegrid", rc=step00.matplotlib_parameters)
 
+    value_columns = [column for column in tqdm.tqdm(["dispersions", "dispersions_norm", "variances", "variances_norm"]) if column in input_adata.var.columns]
+    print("Value columns:", value_columns)
+
     with tempfile.TemporaryDirectory() as directory:
         figure_list: typing.List[str] = list()
 
-        for y in tqdm.tqdm(["dispersions", "dispersions_norm"]):
+        for y in tqdm.tqdm(value_columns):
             fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
 
             seaborn.scatterplot(data=input_adata.var, x="means", y=y, hue="highly_variable", hue_order=[True, False], palette={False: "gainsboro", True: "hotpink"}, legend="full", rasterized=True, s=40, edgecolor=None, ax=ax)
+            if y == "variances":
+                ax.set_xscale("log")
+                ax.set_yscale("log")
 
             total_num = len(input_adata.var)
             variable_num = len(input_adata.var[(input_adata.var["highly_variable"])])
@@ -64,10 +70,10 @@ if __name__ == "__main__":
             fig.savefig(figure_list[-1])
             matplotlib.pyplot.close(fig)
 
-        for y in tqdm.tqdm(["dispersions", "dispersions_norm"]):
+        for y in tqdm.tqdm(value_columns):
             fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
 
-            seaborn.histplot(data=input_adata.var, x="means", y=y, stat="count", bins=100, cmap="YlOrRd", cbar=True, ax=ax)
+            seaborn.histplot(data=input_adata.var, x="means", y=y, stat="count", bins=100, cmap="YlOrRd", cbar=True, log_scale=(y == "variances"), ax=ax)
 
             matplotlib.pyplot.xlabel("Mean expression")
             matplotlib.pyplot.ylabel("Variance in expression")
@@ -79,10 +85,10 @@ if __name__ == "__main__":
             fig.savefig(figure_list[-1])
             matplotlib.pyplot.close(fig)
 
-        for x in tqdm.tqdm(["dispersions", "dispersions_norm"]):
+        for x in tqdm.tqdm(value_columns):
             fig, ax = matplotlib.pyplot.subplots(figsize=(24, 18))
 
-            seaborn.histplot(data=input_adata.var, x=x, stat="percent", bins=100, kde=True, ax=ax)
+            seaborn.histplot(data=input_adata.var, x=x, stat="percent", bins=100, kde=True, log_scale=(x == "variances"), ax=ax)
 
             y = input_adata.var[x]
             s = f"Min–Max: {numpy.min(y):+.2f}–{numpy.max(y):+.2f};"
