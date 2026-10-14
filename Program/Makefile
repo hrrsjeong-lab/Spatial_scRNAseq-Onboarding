@@ -26,6 +26,25 @@ PROJECTIONS = 01_umap 02_tsne 03_phate 04_trimap
 CLUSTERINGS = 01_Leiden 02_Louvain
 CELLTYPES = 01_Human_Lung_Atlas 02_Cells_Lung_Airway 03_Immune_All_High 04_Immune_All_Low 05_Bilous2026_Lung5K
 
+QC_OPTIONS =
+QC_MIN_COUNTS = 0
+SKETCH_OPTIONS = --sketch-column has_pca
+HVG_OPTIONS = --subset-column has_pca
+
+AUTHORS_RDS = /home/Store/PMC12804086/Xenium/xenium5k.seurat.RDS
+SEURAT_NPCS = 50
+SEURAT_DIMS = 2:30
+SEURAT_K = 20
+SEURAT_PRUNE = 0.0666666667
+SEURAT_RESOLUTION = 0.7
+TRANSFER_DIMS = 2:30
+TRANSFER_K = 50
+UMAP_FIT = full
+UMAP_DIMS = 2:30
+UMAP_NEIGHBORS = 30
+UMAP_MIN_DIST = 0.01
+UMAP_METRIC = cosine
+
 # Options
 LOGGING = 1>$(abspath $@).log 2>&1
 LOGGING_DIR = 1>$(abspath $(@D)).log 2>&1
@@ -45,6 +64,16 @@ optimal: step01-optimal step02-optimal step03-optimal step04-optimal step05-opti
 test: step01-test step02-test step03-test step04-test step05-test step06-test step07-test step08-test step09-test step10-test
 	@date | mail -s "[$(PROJECT)] Making $@ has been finished on $(shell hostname)" "jaewoong@gist.ac.kr"
 .PHONY: test
+
+# Step 00 (Authors' Seurat parameters)
+Output/00_Authors:
+	mkdir -p $@
+
+Output/00_Authors/Crohn.parameters.txt: R/dump_seurat_parameters.R $(AUTHORS_RDS) | Output/00_Authors
+	$(SLURM) $(R) $(abspath $^ $@) $(LOGGING)
+
+step00-authors: Output/00_Authors/Crohn.parameters.txt
+.PHONY: step00-authors
 
 # Step 01 (Merge input)
 Output/01_Merging:
@@ -87,7 +116,7 @@ Output/03_QC_filtering:
 	mkdir -p $@
 
 Output/03_QC_filtering/%.hdf5: Python/qc_filtering.py Output/01_Merging/%.hdf5 Output/02_QC_expressed_genes/%.cell.tsv.gz Output/02_QC_expressed_genes/%.gene.tsv.gz | Output/03_QC_filtering
-	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) $(LOGGING)
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) --min-counts $(QC_MIN_COUNTS) --reference-column "CellAnnotation.Level3" $(QC_OPTIONS) $(LOGGING)
 
 step03-test: Output/03_QC_filtering/Test.hdf5
 step03-optimal: Output/03_QC_filtering/$(OPTIMAL).hdf5
@@ -102,7 +131,7 @@ Output/04_Highly_variable_genes/Figures:
 	mkdir -p $@
 
 Output/04_Highly_variable_genes/%.01_Seurat.hdf5: Python/highly_variable_genes.py Output/03_QC_filtering/%.hdf5 | Output/04_Highly_variable_genes
-	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --flavor "seurat_v3_paper" --n-top-genes 2000 $(LOGGING)
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --flavor "seurat_v3_paper" --n-top-genes 2000 $(HVG_OPTIONS) $(LOGGING)
 
 Output/04_Highly_variable_genes/%.02_Cell_ranger.hdf5: Python/highly_variable_genes.py Output/03_QC_filtering/%.hdf5 | Output/04_Highly_variable_genes
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --flavor "cell_ranger" $(LOGGING)
@@ -123,7 +152,7 @@ Output/05_PCA/Figures:
 	mkdir -p $@
 
 Output/05_PCA/%.hdf5: Python/calculate_pca.py Output/04_Highly_variable_genes/%.hdf5 | Output/05_PCA
-	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --pcs $(SEURAT_NPCS) $(SKETCH_OPTIONS) $(LOGGING)
 
 Output/05_PCA/Figures/%.zip: Python/draw_pca.py Output/05_PCA/%.hdf5 | Output/05_PCA/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
@@ -138,7 +167,7 @@ Output/06_Dimensional_reduction:
 	mkdir -p $@
 
 Output/06_Dimensional_reduction/%.01_umap.hdf5: Python/calculate_umap.py Output/05_PCA/%.hdf5 | Output/06_Dimensional_reduction
-	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) $(LOGGING)
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) --fit $(UMAP_FIT) --dims $(UMAP_DIMS) --n-neighbors $(UMAP_NEIGHBORS) --min-dist $(UMAP_MIN_DIST) --metric $(UMAP_METRIC) $(LOGGING)
 
 Output/06_Dimensional_reduction/%.02_tsne.hdf5: Python/calculate_tsne.py Output/05_PCA/%.hdf5 | Output/06_Dimensional_reduction
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) $(LOGGING)
@@ -165,7 +194,7 @@ Output/07_Clustering/%.01_Leiden.hdf5: Python/calculate_leiden.py Output/06_Dime
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 Output/07_Clustering/%.02_Louvain.hdf5: Python/calculate_louvain.py Output/06_Dimensional_reduction/%.hdf5 | Output/07_Clustering
-	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --dims $(SEURAT_DIMS) --neighbors $(SEURAT_K) --prune $(SEURAT_PRUNE) $(if $(SEURAT_RESOLUTION),--resolution $(SEURAT_RESOLUTION),) --transfer-dims $(TRANSFER_DIMS) --transfer-neighbors $(TRANSFER_K) $(LOGGING)
 
 Output/07_Clustering/Figures/%.zip: Python/draw_clustering.py Output/07_Clustering/%.hdf5 | Output/07_Clustering/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
