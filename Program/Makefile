@@ -102,7 +102,7 @@ Output/04_Highly_variable_genes/Figures:
 	mkdir -p $@
 
 Output/04_Highly_variable_genes/%.01_Seurat.hdf5: Python/highly_variable_genes.py Output/03_QC_filtering/%.hdf5 | Output/04_Highly_variable_genes
-	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --flavor "seurat" $(LOGGING)
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --flavor "seurat_v3_paper" --n-top-genes 2000 $(LOGGING)
 
 Output/04_Highly_variable_genes/%.02_Cell_ranger.hdf5: Python/highly_variable_genes.py Output/03_QC_filtering/%.hdf5 | Output/04_Highly_variable_genes
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --flavor "cell_ranger" $(LOGGING)
