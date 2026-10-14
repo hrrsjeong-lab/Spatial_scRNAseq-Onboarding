@@ -43,7 +43,7 @@ def build(d, layer_key=step00.log_column, spatial_key=step00.spatial_key):
     adata = anndata.AnnData(X=X, obs=obs, var=pandas.DataFrame(index=pandas.Index(genes)))
     adata.layers[layer_key] = adata.X.copy()
 
-    for fp in tqdm.tqm(sorted(d.glob("obsm_*.parquet"))):
+    for fp in tqdm.tqdm(sorted(d.glob("obsm_*.parquet"))):
         r = fp.stem.replace("obsm_", "", 1)
         emb = pandas.read_parquet(fp).set_index("cell_id").reindex(adata.obs_names)
         adata.obsm[f"X_{r}"] = emb.to_numpy(dtype=numpy.float32)

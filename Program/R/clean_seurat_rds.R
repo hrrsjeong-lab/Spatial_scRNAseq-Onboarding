@@ -36,4 +36,4 @@ obj@commands <- list()
 
 cat("== Unsupported objects after cleaning ==\n")
 find_unsupported(obj, "obj")
-saveRDS(obj, output_rds:w)
+saveRDS(obj, output_rds)
