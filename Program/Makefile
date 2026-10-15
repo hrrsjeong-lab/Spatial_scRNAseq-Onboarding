@@ -8,7 +8,7 @@ MEM_PER_CPU = $(shell echo '$(MEMS)/$(CPUS)' | bc)
 # Programs
 SLURM = srun --chdir=$(abspath .) --cpus-per-task=$(CPUS) --export=ALL --job-name="Spatial_$(@F)" --mem=$(MEMS)G --mail-user="jaewoong@gist.ac.kr" --mail-type=FAIL
 GPUS = --gpus=1
-PYTHON = /home/Live/jaewoong/Spatial_scRNAseq-Onboarding/.venv/bin/python3 -B
+PYTHON = /home/Live/jaewoong/Spatial_scRNAseq-Onboarding/.venv/bin/python3 -B -u -X faulthandler
 R = /usr/bin/env RENV_CONFIG_SYNCHRONIZED_CHECK=FALSE /usr/bin/Rscript
 rwildcard = $(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(subst *,%,$2),$d))
 product = $(foreach x,$1,$(addprefix $x.,$2))
@@ -40,6 +40,7 @@ SEURAT_RESOLUTION = 0.7
 TRANSFER_DIMS = 2:30
 TRANSFER_K = 50
 UMAP_FIT = full
+UMAP_BACKEND = rapids
 UMAP_DIMS = 2:30
 UMAP_NEIGHBORS = 30
 UMAP_MIN_DIST = 0.01
@@ -167,7 +168,7 @@ Output/06_Dimensional_reduction:
 	mkdir -p $@
 
 Output/06_Dimensional_reduction/%.01_umap.hdf5: Python/calculate_umap.py Output/05_PCA/%.hdf5 | Output/06_Dimensional_reduction
-	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) --fit $(UMAP_FIT) --dims $(UMAP_DIMS) --n-neighbors $(UMAP_NEIGHBORS) --min-dist $(UMAP_MIN_DIST) --metric $(UMAP_METRIC) $(LOGGING)
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) --fit $(UMAP_FIT) --backend $(UMAP_BACKEND) --dims $(UMAP_DIMS) --n-neighbors $(UMAP_NEIGHBORS) --min-dist $(UMAP_MIN_DIST) --metric $(UMAP_METRIC) $(LOGGING)
 
 Output/06_Dimensional_reduction/%.02_tsne.hdf5: Python/calculate_tsne.py Output/05_PCA/%.hdf5 | Output/06_Dimensional_reduction
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) $(LOGGING)
