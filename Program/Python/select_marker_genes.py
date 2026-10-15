@@ -24,7 +24,10 @@ if __name__ == "__main__":
     input_adata = scanpy.read_h5ad(args.input)
     print(input_adata)
 
-    rapids_singlecell.tl.rank_genes_groups(input_adata, groupby=step00.clustering_column, method="wilcoxon", use_raw=False, tie_correct=True, pts=True, mean_in_log_space=False, layer=step00.log_column)
+    group_sizes = input_adata.obs[step00.clustering_column].value_counts()
+    print("Clusters with fewer than two cells (skipped by rank_genes_groups):", group_sizes.loc[group_sizes < 2].to_dict())
+
+    rapids_singlecell.tl.rank_genes_groups(input_adata, groupby=step00.clustering_column, method="wilcoxon", use_raw=False, tie_correct=True, pts=True, mean_in_log_space=False, layer=step00.log_column, skip_empty_groups=True)
     print(input_adata)
 
     model = celltypist.models.Model.load(args.model)
