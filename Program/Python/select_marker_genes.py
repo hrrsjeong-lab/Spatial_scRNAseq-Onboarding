@@ -14,6 +14,7 @@ if __name__ == "__main__":
     parser.add_argument("input", help="Input HDF5 file", type=str)
     parser.add_argument("model", help="celltypist model PKL file", type=str)
     parser.add_argument("output", help="Output HDF5 file", type=str)
+    parser.add_argument("--merge", help="Merge model cell types by step00.celltype_groups (previous behaviour)", action="store_true", default=False)
 
     args = parser.parse_args()
 
@@ -35,9 +36,14 @@ if __name__ == "__main__":
     print("Cell types:", len(model.cell_types))
     print("Features:", len(model.features))
 
-    group_dict = {cell_type: step00.group_celltype(cell_type) for cell_type in tqdm.tqdm(model.cell_types)}
-    print(pandas.Series(group_dict).value_counts())
-    print("Grouped as Other:", sorted(cell_type for cell_type, group in group_dict.items() if group == step00.other_value))
+    if args.merge:
+        group_dict = {cell_type: step00.group_celltype(cell_type) for cell_type in tqdm.tqdm(model.cell_types)}
+        print(pandas.Series(group_dict).value_counts())
+        print("Grouped as Other:", sorted(cell_type for cell_type, group in group_dict.items() if group == step00.other_value))
+    else:
+        group_dict = {cell_type: step00.safe_celltype(cell_type) for cell_type in model.cell_types}
+        assert (len(set(group_dict.values())) == len(group_dict)), "Cell type names collide after safe_celltype!!"
+    print("Cell type labels:", len(set(group_dict.values())), "merge:", args.merge)
 
     gene_list = sorted(input_adata.var.index)
     gene_set = set(gene_list)
@@ -63,8 +69,8 @@ if __name__ == "__main__":
             continue
 
         input_adata.uns[step00.marker_column][group] = marker_gene_list
-        rapids_singlecell.tl.score_genes(input_adata, marker_gene_list, score_name=group, layer=step00.log_column, use_raw=False, ctrl_as_ref=False, random_state=42)
-        marker_dict[group] = input_adata.obs.pop(group).to_numpy()
+        rapids_singlecell.tl.score_genes(input_adata, marker_gene_list, score_name="Marker_score_tmp", layer=step00.log_column, use_raw=False, ctrl_as_ref=False, random_state=42)
+        marker_dict[group] = input_adata.obs.pop("Marker_score_tmp").to_numpy(dtype=numpy.float32)
     input_adata.obsm[step00.marker_column] = pandas.DataFrame(marker_dict, index=input_adata.obs.index)
     print(input_adata.obsm[step00.marker_column])
     print(input_adata.obsm[step00.marker_column])
@@ -93,6 +99,6 @@ if __name__ == "__main__":
     print(input_adata.obs[step00.celltype_column].value_counts())
 
     probability_data = predictions.probability_matrix
-    input_adata.obsm[step00.celltype_column] = pandas.DataFrame({group: probability_data.loc[:, [cell_type for cell_type in probability_data.columns if group_dict[cell_type] == group]].max(axis="columns") for group in sorted(set(group_dict.values()))}, index=input_adata.obs.index)
+    input_adata.obsm[step00.celltype_column] = pandas.DataFrame({group: probability_data.loc[:, [cell_type for cell_type in probability_data.columns if group_dict[cell_type] == group]].max(axis="columns").to_numpy(dtype=numpy.float32) for group in sorted(set(group_dict.values()))}, index=input_adata.obs.index)
     print(input_adata.obsm[step00.celltype_column])
     input_adata.write_h5ad(args.output, **step00.anndata_compressions)

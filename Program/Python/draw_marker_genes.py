@@ -164,16 +164,11 @@ if __name__ == "__main__":
 
         for cluster in tqdm.tqdm(cluster_list):
             cell_type = sorted(zip(cluster_score_data.loc[cluster, :], marker_cell_type_list))[-1][1]
-            order = numpy.argsort(clustering_data[cell_type].to_numpy(), kind="stable")
-            vmin, vmax = numpy.percentile(clustering_data[cell_type], [1, 99])
             mask = (clustering_data[step00.clustering_column] == cluster).to_numpy()
 
             fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
 
-            scatter = ax.scatter(clustering_data[step00.projection_columns[0]].to_numpy()[order], clustering_data[step00.projection_columns[1]].to_numpy()[order], c=clustering_data[cell_type].to_numpy()[order], cmap="Reds", norm=matplotlib.colors.Normalize(vmin=vmin, vmax=vmax), s=5, linewidths=0, rasterized=True)
-            colorbar = fig.colorbar(scatter, ax=ax, location="bottom", fraction=0.03, pad=0.02)
-            colorbar.set_label(f"{cell_type} score", fontsize="small")
-            colorbar.ax.tick_params(labelsize="xx-small")
+            seaborn.scatterplot(data=clustering_data, x=step00.projection_columns[0], y=step00.projection_columns[1], hue=cell_type, palette="Reds", hue_norm=matplotlib.colors.Normalize(vmin=0, vmax=max(clustering_data[cell_type])), legend=False, s=5, ax=ax)
             step00.confidence_ellipse(clustering_data.loc[mask, step00.projection_columns[0]], clustering_data.loc[mask, step00.projection_columns[1]], ax=ax, edgecolor="black", linewidth=2.5)
             ax.text(numpy.mean(clustering_data.loc[mask, step00.projection_columns[0]]), numpy.mean(clustering_data.loc[mask, step00.projection_columns[1]]), cluster, horizontalalignment="center", verticalalignment="center", fontsize="medium", color="black", path_effects=step00.path_effects)
 

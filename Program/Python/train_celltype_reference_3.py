@@ -12,6 +12,8 @@ if __name__ == "__main__":
     parser.add_argument("output", help="Output PKL file", type=str)
     parser.add_argument("--label", help="Label column in obs", type=str, required=True)
     parser.add_argument("--cpus", help="CPUs to use", type=int, default=1)
+    parser.add_argument("--feature-selection", help="celltypist feature_selection (auto: only when more genes than --top-genes)", choices=["auto", "on", "off"], default="auto")
+    parser.add_argument("--top-genes", help="celltypist top_genes for feature selection", type=int, default=300)
 
     args = parser.parse_args()
 
@@ -40,6 +42,9 @@ if __name__ == "__main__":
     scanpy.pp.log1p(input_adata)
     print(input_adata)
 
-    model = celltypist.train(input_adata, labels=args.label, use_SGD=True, n_jobs=args.cpus, feature_selection=True)
+    feature_selection = (args.feature_selection == "on") or ((args.feature_selection == "auto") and (input_adata.n_vars > args.top_genes))
+    print("Feature selection:", feature_selection, "| genes:", input_adata.n_vars, "| top_genes:", args.top_genes)
+
+    model = celltypist.train(input_adata, labels=args.label, use_SGD=True, n_jobs=args.cpus, feature_selection=feature_selection, top_genes=args.top_genes)
     print(model)
     model.write(args.output)
