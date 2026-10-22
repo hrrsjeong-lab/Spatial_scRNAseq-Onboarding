@@ -2,7 +2,6 @@ import argparse
 import celltypist
 import numpy
 import scanpy
-import rapids_singlecell
 import step00
 
 if __name__ == "__main__":
@@ -40,7 +39,7 @@ if __name__ == "__main__":
     print(input_adata.obs[args.label].value_counts())
 
     target_sum = 10 ** 4
-    rapids_singlecell.pp.normalize_total(input_adata, target_sum=target_sum)
+    scanpy.pp.normalize_total(input_adata, target_sum=target_sum)
     scanpy.pp.log1p(input_adata)
     print(input_adata)
 
