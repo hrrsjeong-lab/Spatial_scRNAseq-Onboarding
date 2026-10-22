@@ -163,7 +163,7 @@ def group_celltype(celltype: str) -> str:
 def evaluate_confusion_matrix(confusion_matrix: numpy.ndarray) -> typing.Dict[str, float]:
     assert confusion_matrix.shape == (2, 2), confusion_matrix
 
-    true_positive, false_positive, false_negative, true_negative = confusion_matrix[0][0], confusion_matrix[0][1], confusion_matrix[1][0], confusion_matrix[1][1]
+    true_negative, false_positive, false_negative, true_positive = confusion_matrix[0][0], confusion_matrix[0][1], confusion_matrix[1][0], confusion_matrix[1][1]
     positive = true_positive + false_positive
     negative = true_negative + false_negative
 
