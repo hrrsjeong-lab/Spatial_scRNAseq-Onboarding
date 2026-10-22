@@ -168,13 +168,13 @@ if __name__ == "__main__":
 
             fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
 
-            seaborn.scatterplot(data=clustering_data, x=step00.projection_columns[0], y=step00.projection_columns[1], hue=cell_type, palette="Reds", hue_norm=matplotlib.colors.Normalize(vmin=0, vmax=max(clustering_data[cell_type])), legend=False, s=5, ax=ax)
+            seaborn.scatterplot(data=clustering_data, x=step00.projection_columns[0], y=step00.projection_columns[1], hue=cell_type, palette="Reds", hue_norm=matplotlib.colors.Normalize(vmin=0, vmax=max(clustering_data[cell_type])), rasterized=True, legend=False, s=5, ax=ax)
             step00.confidence_ellipse(clustering_data.loc[mask, step00.projection_columns[0]], clustering_data.loc[mask, step00.projection_columns[1]], ax=ax, edgecolor="black", linewidth=2.5)
             ax.text(numpy.mean(clustering_data.loc[mask, step00.projection_columns[0]]), numpy.mean(clustering_data.loc[mask, step00.projection_columns[1]]), cluster, horizontalalignment="center", verticalalignment="center", fontsize="medium", color="black", path_effects=step00.path_effects)
 
             ax.set_xticklabels([])
             ax.set_yticklabels([])
-            ax.set_title(f"{cell_type} (Gene n={len(input_adata.uns[step00.marker_column][cell_type])})", fontsize="small")
+            ax.set_title(f"{cell_type} with Cluster #{cluster}", fontsize="small")
             fig.tight_layout()
 
             figure_list.append(f"{directory}/Cluster-{cluster}.pdf")
