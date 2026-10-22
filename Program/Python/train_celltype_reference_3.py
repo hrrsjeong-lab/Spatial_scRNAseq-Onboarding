@@ -2,6 +2,7 @@ import argparse
 import celltypist
 import numpy
 import scanpy
+import rapids_singlecell
 import step00
 
 if __name__ == "__main__":
@@ -38,7 +39,8 @@ if __name__ == "__main__":
     input_adata.obs[args.label] = input_adata.obs[args.label].astype(str).map(step00.safe_celltype)
     print(input_adata.obs[args.label].value_counts())
 
-    scanpy.pp.normalize_total(input_adata, target_sum=10 ** 4)
+    target_sum = 10 ** 4
+    rapids_singlecell.pp.normalize_total(input_adata, target_sum=target_sum)
     scanpy.pp.log1p(input_adata)
     print(input_adata)
 
@@ -47,4 +49,7 @@ if __name__ == "__main__":
 
     model = celltypist.train(input_adata, labels=args.label, use_SGD=True, n_jobs=args.cpus, feature_selection=feature_selection, top_genes=args.top_genes)
     print(model)
+
+    model.description["normalization_genes"] = list(input_adata.var.index)
+    model.description["target_sum"] = target_sum
     model.write(args.output)
