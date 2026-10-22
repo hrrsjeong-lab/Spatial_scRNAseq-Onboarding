@@ -49,23 +49,32 @@ MCGREGOR_XENIUM_ASSAY =
 MCGREGOR_XENIUM_LABEL = CellAnnotation.Level0.Factor
 MCGREGOR_XENIUM_PER_LABEL = 5000
 
+EVALUATE_TRUE_COLUMN = CellAnnotation.Level3
+EVALUATE_MARKER_TABLE = Output/08_Marker_genes/References/McGregor2025_Xenium480_Level0_markers.tsv
+
+MCGREGOR_LINEAGE_COLUMN = CellAnnotation.Level0
+MCGREGOR_SUBTYPE_COLUMN = CellAnnotation.Level3
+MCGREGOR_GROUP_COLUMN = TYPE
+MCGREGOR_SUBSET_PATTERN = (?i)fibroblast|^FAS
+MCGREGOR_SECTIONS =
+
 # Options
 LOGGING = 1>$(abspath $@).log 2>&1
 LOGGING_DIR = 1>$(abspath $(@D)).log 2>&1
 LOGGING_TEE = 2>&1 | tee $(abspath $@).log
 
-all: test optimal step01 step02 step03 step04 step05 step06 step07 step08 step09 step10
+all: test optimal step01 step02 step03 step04 step05 step06 step07 step08 step09 step10 step11 step12
 	@date | mail -s "[$(PROJECT)] Making $@ has been finished on $(shell hostname)" "jaewoong@gist.ac.kr"
 .PHONY: all
 
 clean:
 .PHONY: clean
 
-optimal: step01-optimal step02-optimal step03-optimal step04-optimal step05-optimal step06-optimal step07-optimal step08-optimal step09-optimal step10-optimal
+optimal: step01-optimal step02-optimal step03-optimal step04-optimal step05-optimal step06-optimal step07-optimal step08-optimal step09-optimal step10-optimal step11-optimal step12-optimal
 	@date | mail -s "[$(PROJECT)] Making $@ has been finished on $(shell hostname)" "jaewoong@gist.ac.kr"
 .PHONY: optimal
 
-test: step01-test step02-test step03-test step04-test step05-test step06-test step07-test step08-test step09-test step10-test
+test: step01-test step02-test step03-test step04-test step05-test step06-test step07-test step08-test step09-test step10-test step11-test step12-test
 	@date | mail -s "[$(PROJECT)] Making $@ has been finished on $(shell hostname)" "jaewoong@gist.ac.kr"
 .PHONY: test
 
@@ -255,7 +264,6 @@ Output/08_Marker_genes/References/McGregor2025_Fibroblasts.h5ad: Python/import_s
 Output/08_Marker_genes/References/09_McGregor2025_Fibroblasts.pkl: Python/train_celltype_reference_3.py Output/08_Marker_genes/References/McGregor2025_Fibroblasts.h5ad Output/03_QC_filtering/Crohn.hdf5
 	$(SLURM) $(PYTHON) $(abspath $^ $@) --label "CellAnnotation.Level2" --cpus $(CPUS) $(LOGGING)
 
-Output/08_Marker_genes/References/McGregor2025_Xenium480/obs.csv.gz: MEMS = 250
 Output/08_Marker_genes/References/McGregor2025_Xenium480/obs.csv.gz: R/export_seurat_reference.R /home/Store/PMC12804086/Xenium/xenium_spatial_transcriptomics.RDS | Output/08_Marker_genes/References
 	$(SLURM) $(R) $(abspath $^) $(abspath $(@D)) --label=$(MCGREGOR_XENIUM_LABEL) --max-per-label=$(MCGREGOR_XENIUM_PER_LABEL) --seed=42 $(LOGGING_DIR)
 
@@ -337,11 +345,40 @@ Output/11_Evaluate_celltype:
 Output/11_Evaluate_celltype/Figures:
 	mkdir -p $@
 
-Output/11_Evaluate_celltype/Lake2025_Kidney.hdf5: Python/select_marker_genes_2.py Output/08_Marker_genes/References/Lake2025_Kidney.h5ad Output/08_Marker_genes/References/06_Lake2025_Kidney.pkl | Output/11_Evaluate_celltype
+Output/08_Marker_genes/References/McGregor2025_Xenium480_Level0_markers.tsv: | Output/08_Marker_genes/References
+	wget "https://data.mendeley.com/public-files/datasets/64fkdfcpzb/files/ac2e8611-ee1e-488a-9555-e5361c06940a/file_downloaded" -O $(abspath $@) $(LOGGING)
+
+Output/11_Evaluate_celltype/%.09_McGregor2025_Fibroblasts.hdf5: Python/evaluate_marker_genes.py Output/08_Marker_genes/%.09_McGregor2025_Fibroblasts.hdf5 Output/08_Marker_genes/References/09_McGregor2025_Fibroblasts.pkl Output/08_Marker_genes/References/McGregor2025_Fibroblasts.h5ad | Output/11_Evaluate_celltype $(EVALUATE_MARKER_TABLE)
+	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --model $(abspath $(word 3,$^)) --reference $(abspath $(word 4,$^)) --true-column "$(EVALUATE_TRUE_COLUMN)" --marker-table $(abspath $(EVALUATE_MARKER_TABLE)) $(LOGGING)
+
+Output/11_Evaluate_celltype/%.10_McGregor2025_Xenium480.hdf5: Python/evaluate_marker_genes.py Output/08_Marker_genes/%.10_McGregor2025_Xenium480.hdf5 Output/08_Marker_genes/References/10_McGregor2025_Xenium480.pkl Output/08_Marker_genes/References/McGregor2025_Xenium480.h5ad | Output/11_Evaluate_celltype $(EVALUATE_MARKER_TABLE)
+	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --model $(abspath $(word 3,$^)) --reference $(abspath $(word 4,$^)) --true-column "$(EVALUATE_TRUE_COLUMN)" --marker-table $(abspath $(EVALUATE_MARKER_TABLE)) $(LOGGING)
+
+Output/11_Evaluate_celltype/Figures/%.zip: Python/draw_evaluate_marker_genes.py Output/11_Evaluate_celltype/%.hdf5 | Output/11_Evaluate_celltype/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-Output/11_Evaluate_celltype/Figures/%.zip: Python/draw_evaluate_celltype.py Output/11_Evaluate_celltype/%.hdf5 | Output/11_Evaluate_celltype/Figures
-	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
+step11-test: Output/08_Marker_genes/References/McGregor2025_Xenium480_Level0_markers.tsv Output/11_Evaluate_celltype/Test.01_Seurat.01_umap.02_Louvain.10_McGregor2025_Xenium480.hdf5 Output/11_Evaluate_celltype/Figures/Test.01_Seurat.01_umap.02_Louvain.10_McGregor2025_Xenium480.zip
+step11-optimal: Output/08_Marker_genes/References/McGregor2025_Xenium480_Level0_markers.tsv Output/11_Evaluate_celltype/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.10_McGregor2025_Xenium480.hdf5 Output/11_Evaluate_celltype/Figures/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.10_McGregor2025_Xenium480.zip
+step11:
+.PHONY: step11-test step11-optimal step11
 
-step11: Output/11_Evaluate_celltype/Lake2025_Kidney.hdf5 Output/11_Evaluate_celltype/Figures/Lake2025_Kidney.zip
-.PHONY: step11
+# Step 12 (McGregor 2025 Extended Data Fig. 10)
+Output/12_McGregor_figures:
+	mkdir -p $@
+
+Output/12_McGregor_figures/Figures:
+	mkdir -p $@
+
+Output/12_McGregor_figures/%.pseudobulk.hdf5: Python/calculate_pseudobulk_pca.py Output/03_QC_filtering/%.hdf5 | Output/12_McGregor_figures
+	$(SLURM) $(PYTHON) $(abspath $^ $@) --group-column "$(MCGREGOR_GROUP_COLUMN)" --top-genes 1000 $(LOGGING)
+
+Output/12_McGregor_figures/%.fibroblasts.hdf5: Python/calculate_subset_embedding.py Output/03_QC_filtering/%.hdf5 | Output/12_McGregor_figures
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --lineage-column "$(MCGREGOR_LINEAGE_COLUMN)" --pattern '$(MCGREGOR_SUBSET_PATTERN)' --subtype-column "$(MCGREGOR_SUBTYPE_COLUMN)" --group-column "$(MCGREGOR_GROUP_COLUMN)" --n-top-genes 2000 --pcs $(SEURAT_NPCS) --dims $(UMAP_DIMS) --neighbors $(UMAP_NEIGHBORS) --min-dist $(UMAP_MIN_DIST) $(LOGGING)
+
+Output/12_McGregor_figures/Figures/%.ED10.zip: Python/draw_mcgregor_extended_data10.py Output/03_QC_filtering/%.hdf5 Output/12_McGregor_figures/%.pseudobulk.hdf5 Output/12_McGregor_figures/%.fibroblasts.hdf5 | Output/12_McGregor_figures/Figures
+	$(SLURM) $(PYTHON) $(abspath $^ $@) --lineage-column "$(MCGREGOR_LINEAGE_COLUMN)" --group-column "$(MCGREGOR_GROUP_COLUMN)" $(if $(MCGREGOR_SECTIONS),--sections $(MCGREGOR_SECTIONS),) $(LOGGING)
+
+step12-test: Output/12_McGregor_figures/Test.pseudobulk.hdf5 Output/12_McGregor_figures/Test.fibroblasts.hdf5 Output/12_McGregor_figures/Figures/Test.ED10.zip
+step12-optimal: Output/12_McGregor_figures/$(OPTIMAL).pseudobulk.hdf5 Output/12_McGregor_figures/$(OPTIMAL).fibroblasts.hdf5 Output/12_McGregor_figures/Figures/$(OPTIMAL).ED10.zip
+step12: step12-test step12-optimal
+.PHONY: step12-test step12-optimal step12
