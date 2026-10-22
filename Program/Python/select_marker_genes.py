@@ -1,12 +1,40 @@
 import argparse
 import numpy
+import anndata
 import celltypist
 import celltypist.models
 import pandas
 import scanpy
+import scipy.sparse
 import rapids_singlecell
 import tqdm
 import step00
+
+
+def annotation_input(input_adata: anndata.AnnData, model: celltypist.models.Model) -> anndata.AnnData:
+    normalization_genes = model.description.get("normalization_genes", None)
+    if normalization_genes is None:
+        print("Model has no normalization_genes: using", step00.log_column, "over all", input_adata.n_vars, "panel genes")
+        return anndata.AnnData(X=input_adata.layers[step00.log_column].copy(), obs=input_adata.obs, var=input_adata.var)
+
+    normalization_mask = input_adata.var.index.isin(set(normalization_genes))
+    print("Normalization genes on panel:", int(normalization_mask.sum()), "/", len(normalization_genes))
+    assert normalization_mask.any(), "No normalization genes on the panel!!"
+
+    counts = scipy.sparse.csr_matrix(input_adata.X[:, normalization_mask], dtype=numpy.float64)
+    sample_values = counts[:100].toarray()
+    assert numpy.allclose(sample_values, numpy.round(sample_values)), "X is not raw counts"
+
+    total_counts = numpy.asarray(input_adata.X.sum(axis=1)).ravel()
+    normalization_counts = numpy.asarray(counts.sum(axis=1)).ravel()
+    print("Fraction of counts in normalization genes:", pandas.Series(normalization_counts / numpy.maximum(total_counts, 1)).describe().round(3).to_dict())
+    print("Cells with zero counts in normalization genes:", int((normalization_counts == 0).sum()))
+
+    annotation_adata = anndata.AnnData(X=counts, obs=input_adata.obs, var=input_adata.var.loc[normalization_mask])
+    scanpy.pp.normalize_total(annotation_adata, target_sum=model.description.get("target_sum", 10 ** 4))
+    scanpy.pp.log1p(annotation_adata)
+    return annotation_adata
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -70,7 +98,7 @@ if __name__ == "__main__":
 
         input_adata.uns[step00.marker_column][group] = marker_gene_list
         rapids_singlecell.tl.score_genes(input_adata, marker_gene_list, score_name="Marker_score_tmp", layer=step00.log_column, use_raw=False, ctrl_as_ref=False, random_state=42)
-        marker_dict[group] = input_adata.obs.pop("Marker_score_tmp").to_numpy(dtype=numpy.float32)
+        marker_dict[group] = input_adata.obs.pop("Marker_score_tmp").to_numpy(dtype=numpy.float64)
     input_adata.obsm[step00.marker_column] = pandas.DataFrame(marker_dict, index=input_adata.obs.index)
     print(input_adata.obsm[step00.marker_column])
     print(input_adata.obsm[step00.marker_column])
@@ -78,7 +106,8 @@ if __name__ == "__main__":
     rapids_singlecell.tl.leiden(input_adata, resolution=50, random_state=42, key_added="Over_clustering")
     print("Over-clusters:", input_adata.obs["Over_clustering"].nunique())
 
-    annotation_adata = scanpy.AnnData(X=input_adata.layers[step00.log_column].copy(), obs=input_adata.obs, var=input_adata.var)
+    annotation_adata = annotation_input(input_adata, model)
+    input_adata.uns[f"{step00.celltype_column}_normalization"] = {"genes": int(annotation_adata.n_vars), "model_genes": ("normalization_genes" in model.description)}
     annotation_adata.obsp["connectivities"] = input_adata.obsp["connectivities"]
     annotation_adata.obsp["distances"] = input_adata.obsp["distances"]
     annotation_adata.uns["neighbors"] = input_adata.uns["neighbors"]
@@ -99,6 +128,6 @@ if __name__ == "__main__":
     print(input_adata.obs[step00.celltype_column].value_counts())
 
     probability_data = predictions.probability_matrix
-    input_adata.obsm[step00.celltype_column] = pandas.DataFrame({group: probability_data.loc[:, [cell_type for cell_type in probability_data.columns if group_dict[cell_type] == group]].max(axis="columns").to_numpy(dtype=numpy.float32) for group in sorted(set(group_dict.values()))}, index=input_adata.obs.index)
+    input_adata.obsm[step00.celltype_column] = pandas.DataFrame({group: probability_data.loc[:, [cell_type for cell_type in probability_data.columns if group_dict[cell_type] == group]].max(axis="columns").to_numpy(dtype=numpy.float64) for group in sorted(set(group_dict.values()))}, index=input_adata.obs.index)
     print(input_adata.obsm[step00.celltype_column])
     input_adata.write_h5ad(args.output, **step00.anndata_compressions)
