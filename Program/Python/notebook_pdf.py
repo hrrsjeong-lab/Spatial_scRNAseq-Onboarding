@@ -141,7 +141,7 @@ class Notebook:
         notebook.write_pdf("Notebook.pdf")  # images at most 60% of the text width and 50% of its height
     """
 
-    def __init__(self, title: str, script: str, packages: typing.Sequence[str] = ("anndata", "scanpy", "matplotlib", "numpy", "pandas"), show_imports: bool = True) -> None:
+    def __init__(self, title: str, script: str, packages: typing.Sequence[str] = ("anndata", "scanpy", "matplotlib", "numpy", "pandas", "seaborn"), show_imports: bool = True) -> None:
         self.title = title
         self.script = os.path.abspath(script)
         self.packages = list(packages)
