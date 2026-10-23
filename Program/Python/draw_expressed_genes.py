@@ -13,6 +13,7 @@ import scipy
 import seaborn
 import tqdm
 import tqdm.contrib.itertools
+import notebook_pdf
 import step00
 
 
@@ -29,30 +30,35 @@ if __name__ == "__main__":
     step00.check_suffix(args.gene, {".tsv", ".tsv.gz"})
     step00.check_suffix(args.output, {".zip"})
 
-    cell_data = pandas.read_csv(args.cell, sep="\t", index_col=0)
-    cell_test_list = list(cell_data.columns)[:4]
-    print("Cell test:", len(cell_test_list), cell_test_list)
-    print(cell_data)
+    notebook = notebook_pdf.Notebook(title="Number of expressed genes", script=__file__)
 
-    sample_list = sorted(set(cell_data[step00.sample_column]))
-    sample_palette = dict(zip(sample_list, itertools.cycle(matplotlib.colors.TABLEAU_COLORS)))
-    print("Sample:", len(sample_list), sample_list)
+    with notebook.cell("Read cell data"):
+        cell_data = pandas.read_csv(args.cell, sep="\t", index_col=0)
+        cell_test_list = list(cell_data.columns)[:4]
+        print("Cell test:", len(cell_test_list), cell_test_list)
+        print(cell_data)
 
-    sample_series = cell_data[step00.sample_column]
-    sample_columns = pandas.DataFrame({sample: numpy.where(sample_series == sample, sample, step00.rest_value) for sample in tqdm.tqdm(sample_list)}, index=cell_data.index)
-    cell_data = pandas.concat([cell_data, sample_columns], axis=1)
-    print(cell_data)
-    del sample_columns
+    with notebook.cell("Read sample data"):
+        sample_list = sorted(set(cell_data[step00.sample_column]))
+        sample_palette = dict(zip(sample_list, itertools.cycle(matplotlib.colors.TABLEAU_COLORS)))
+        print("Sample:", len(sample_list), sample_list)
 
-    gene_data = pandas.read_csv(args.gene, sep="\t", index_col=0)
-    gene_test_list = list(gene_data.columns)
-    print("Gene test:", len(gene_test_list), gene_test_list)
-    print(gene_data)
+        sample_series = cell_data[step00.sample_column]
+        sample_columns = pandas.DataFrame({sample: numpy.where(sample_series == sample, sample, step00.rest_value) for sample in tqdm.tqdm(sample_list)}, index=cell_data.index)
+        cell_data = pandas.concat([cell_data, sample_columns], axis=1)
+        print(cell_data)
+        del sample_columns
 
-    gene_list = list(gene_data.index)
-    gene_palette = dict(zip(gene_list, itertools.cycle(matplotlib.colors.XKCD_COLORS)))
-    gene_data["Gene"] = gene_list
-    print(gene_data)
+    with notebook.cell("Read gene data"):
+        gene_data = pandas.read_csv(args.gene, sep="\t", index_col=0)
+        gene_test_list = list(gene_data.columns)
+        print("Gene test:", len(gene_test_list), gene_test_list)
+        print(gene_data)
+
+        gene_list = list(gene_data.index)
+        gene_palette = dict(zip(gene_list, itertools.cycle(matplotlib.colors.XKCD_COLORS)))
+        gene_data["Gene"] = gene_list
+        print(gene_data)
 
     matplotlib.use("Agg")
     matplotlib.rcParams.update(step00.matplotlib_parameters)
@@ -63,18 +69,19 @@ if __name__ == "__main__":
         figure_list: typing.List[str] = list()
 
         for cell_test in tqdm.tqdm(cell_test_list):
-            fig, ax = matplotlib.pyplot.subplots(figsize=(24, 18))
+            with notebook.cell(f"Cell Hist: {cell_test}"):
+                fig, ax = matplotlib.pyplot.subplots(figsize=(24, 18))
 
-            seaborn.histplot(data=cell_data, x=cell_test, hue=step00.sample_column, stat="count", bins=100, multiple="stack", common_norm=True, kde=True, palette=sample_palette, hue_order=sample_list, ax=ax)
+                seaborn.histplot(data=cell_data, x=cell_test, hue=step00.sample_column, stat="count", bins=100, multiple="stack", common_norm=True, kde=True, palette=sample_palette, hue_order=sample_list, ax=ax)
 
-            matplotlib.pyplot.xlabel(cell_test.replace("_", " "))
-            matplotlib.pyplot.tight_layout()
+                matplotlib.pyplot.xlabel(cell_test.replace("_", " "))
+                matplotlib.pyplot.tight_layout()
 
-            figure_list.append(f"{directory}/Cell-{step00.format_filename(cell_test)}-Hist.pdf")
-            fig.savefig(figure_list[-1])
-            figure_list.append(f"{directory}/Cell-{step00.format_filename(cell_test)}-Hist.png")
-            fig.savefig(figure_list[-1])
-            matplotlib.pyplot.close(fig)
+                figure_list.append(f"{directory}/Cell-{step00.format_filename(cell_test)}-Hist.pdf")
+                fig.savefig(figure_list[-1])
+                figure_list.append(f"{directory}/Cell-{step00.format_filename(cell_test)}-Hist.png")
+                fig.savefig(figure_list[-1])
+                matplotlib.pyplot.close(fig)
 
         for cell_test in tqdm.tqdm(cell_test_list):
             g = seaborn.FacetGrid(data=cell_data, row=step00.sample_column, hue=step00.sample_column, hue_order=sample_list, aspect=5, height=5, palette=sample_palette)
@@ -176,6 +183,9 @@ if __name__ == "__main__":
             figure_list.append(f"{directory}/Gene-{step00.format_filename(gene_test)}-Hist.png")
             fig.savefig(figure_list[-1])
             matplotlib.pyplot.close(fig)
+
+        figure_list.append(f"{directory}/Notebook.pdf")
+        notebook.write_pdf(figure_list[-1])
 
         with zipfile.ZipFile(args.output, mode="w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as zip_file:
             for figure in tqdm.tqdm(figure_list):
