@@ -33,17 +33,17 @@ HVG_OPTIONS = --subset-column has_pca
 
 SEURAT_NPCS = 50
 SEURAT_DIMS = 2:30
-SEURAT_K = 20
-SEURAT_PRUNE = 0.0666666667
-SEURAT_RESOLUTION = 0.7
-TRANSFER_DIMS = 2:30
-TRANSFER_K = 50
-UMAP_FIT = full
-UMAP_BACKEND = rapids
-UMAP_DIMS = 2:30
-UMAP_NEIGHBORS = 30
-UMAP_MIN_DIST = 0.01
-UMAP_METRIC = cosine
+	SEURAT_K = 20
+	SEURAT_PRUNE = 0.0666666667
+	SEURAT_RESOLUTION = 0.7
+	TRANSFER_DIMS = 2:30
+	TRANSFER_K = 50
+	UMAP_FIT = full
+	UMAP_BACKEND = rapids
+	UMAP_DIMS = 2:30
+	UMAP_NEIGHBORS = 30
+	UMAP_MIN_DIST = 0.01
+	UMAP_METRIC = cosine
 
 MCGREGOR_XENIUM_ASSAY =
 MCGREGOR_XENIUM_LABEL = CellAnnotation.Level0.Factor
@@ -63,31 +63,42 @@ LOGGING = 1>$(abspath $@).log 2>&1
 LOGGING_DIR = 1>$(abspath $(@D)).log 2>&1
 LOGGING_TEE = 2>&1 | tee $(abspath $@).log
 
-all: test optimal step01 step02 step03 step04 step05 step06 step07 step08 step09 step10 step11 step12
+all: step00 test optimal step01 step02 step03 step04 step05 step06 step07 step08 step09 step10 step11 step12
 	@date | mail -s "[$(PROJECT)] Making $@ has been finished on $(shell hostname)" "jaewoong@gist.ac.kr"
-.PHONY: all
+	.PHONY: all
 
 clean:
 .PHONY: clean
 
 optimal: step01-optimal step02-optimal step03-optimal step04-optimal step05-optimal step06-optimal step07-optimal step08-optimal step09-optimal step10-optimal step11-optimal step12-optimal
 	@date | mail -s "[$(PROJECT)] Making $@ has been finished on $(shell hostname)" "jaewoong@gist.ac.kr"
-.PHONY: optimal
+	.PHONY: optimal
 
 test: step01-test step02-test step03-test step04-test step05-test step06-test step07-test step08-test step09-test step10-test step11-test step12-test
 	@date | mail -s "[$(PROJECT)] Making $@ has been finished on $(shell hostname)" "jaewoong@gist.ac.kr"
-.PHONY: test
+	.PHONY: test
 
-# Step 00 (Authors' Seurat parameters)
+# Step 00 (Authors' Seurat parameters and objects)
 Output/00_Authors:
 	mkdir -p $@
 
 Output/00_Authors/Crohn.parameters.txt: R/dump_seurat_parameters.R /home/Store/PMC12804086/Xenium/xenium5k.seurat.RDS | Output/00_Authors
 	$(SLURM) $(R) $(abspath $^ $@) $(LOGGING)
 
-step00-authors: Output/00_Authors/Crohn.parameters.txt
-.PHONY: step00-authors
+Output/00_Authors/McGregor2025_Fibroblasts/obs.csv.gz: R/export_seurat_full.R /home/Store/PMC12804086/scRNA-seq/scrna_seq_meta_analysis_fibroblasts.RDS | Output/00_Authors
+	$(SLURM) $(R) $(abspath $^) $(abspath $(@D)) --assay=RNA_CLEAN --layers=counts,data --reductions=all $(LOGGING_DIR)
 
+Output/00_Authors/McGregor2025_Fibroblasts.h5ad: Python/import_seurat_full.py Output/00_Authors/McGregor2025_Fibroblasts/obs.csv.gz
+	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
+
+Output/00_Authors/McGregor2025_scRNA_all/obs.csv.gz: R/export_seurat_full.R /home/Store/PMC12804086/scRNA-seq/scrna_seq_all_cells-6eGUr1.RDS | Output/00_Authors
+	$(SLURM) $(R) $(abspath $^) $(abspath $(@D)) --layers=counts,data --reductions=all $(LOGGING_DIR)
+
+Output/00_Authors/McGregor2025_scRNA_all.h5ad: Python/import_seurat_full.py Output/00_Authors/McGregor2025_scRNA_all/obs.csv.gz
+	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
+
+step00: Output/00_Authors/Crohn.parameters.txt Output/00_Authors/McGregor2025_Fibroblasts.h5ad Output/00_Authors/McGregor2025_scRNA_all.h5ad
+.PHONY: step00
 # Step 01 (Merge input)
 Output/01_Merging:
 	mkdir -p $@
