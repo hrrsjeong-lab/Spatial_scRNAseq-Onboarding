@@ -34,10 +34,6 @@ if __name__ == "__main__":
         print(input_adata)
         print(input_adata.var)
 
-    matplotlib.use("Agg")
-    matplotlib.rcParams.update(step00.matplotlib_parameters)
-    seaborn.set_theme(context="poster", style="whitegrid", rc=step00.matplotlib_parameters)
-
     with notebook.cell("Values"):
         value_columns = [column for column in tqdm.tqdm(["dispersions", "dispersions_norm", "variances", "variances_norm"]) if column in input_adata.var.columns]
         print("Value columns:", value_columns)
@@ -47,6 +43,10 @@ if __name__ == "__main__":
         for column in tqdm.tqdm(value_columns):
             plot_data_dict[column] = var_data.loc[(var_data["means"] > 0) & (var_data[column] > 0)] if (column in log_columns) else var_data
             print(column, "genes plotted:", len(plot_data_dict[column]), "/", len(var_data), "(zero mean or variance excluded on log scale)" if (column in log_columns) else "")
+
+    matplotlib.use("Agg")
+    matplotlib.rcParams.update(step00.matplotlib_parameters)
+    seaborn.set_theme(context="poster", style="whitegrid", rc=step00.matplotlib_parameters)
 
     with tempfile.TemporaryDirectory() as directory:
         figure_list: typing.List[str] = list()
