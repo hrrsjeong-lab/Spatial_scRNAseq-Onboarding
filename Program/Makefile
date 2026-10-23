@@ -29,7 +29,6 @@ CELLTYPES = 07_CRC 08_Crohn 09_McGregor2025_Fibroblasts 10_McGregor2025_Xenium48
 QC_OPTIONS =
 QC_MIN_COUNTS = 0
 SKETCH_OPTIONS = --sketch-column has_pca
-HVG_OPTIONS = --subset-column has_pca
 
 SEURAT_NPCS = 50
 SEURAT_DIMS = 2:30
@@ -89,15 +88,15 @@ Output/00_Authors/McGregor2025_Fibroblasts/obs.csv.gz: R/export_seurat_full.R /h
 	$(SLURM) $(R) $(abspath $^) $(abspath $(@D)) --assay=RNA_CLEAN --layers=counts,data --reductions=all $(LOGGING_DIR)
 
 Output/00_Authors/McGregor2025_Fibroblasts.h5ad: Python/import_seurat_full.py Output/00_Authors/McGregor2025_Fibroblasts/obs.csv.gz
-	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
+	$(SLURM) $(PYTHON) $(abspath $^ $@) --celltype-column "CellAnnotation.Level2" $(LOGGING)
 
 Output/00_Authors/McGregor2025_scRNA_all/obs.csv.gz: R/export_seurat_full.R /home/Store/PMC12804086/scRNA-seq/scrna_seq_all_cells-6eGUr1.RDS | Output/00_Authors
 	$(SLURM) $(R) $(abspath $^) $(abspath $(@D)) --layers=counts,data --reductions=all $(LOGGING_DIR)
 
 Output/00_Authors/McGregor2025_scRNA_all.hdf5: Python/import_seurat_full.py Output/00_Authors/McGregor2025_scRNA_all/obs.csv.gz
-	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
+	$(SLURM) $(PYTHON) $(abspath $^ $@) --celltype-column "active.ident" $(LOGGING)
 
-step00: Output/00_Authors/Crohn.parameters.txt Output/00_Authors/McGregor2025_Fibroblasts.h5ad Output/00_Authors/McGregor2025_scRNA_all.h5ad
+step00: Output/00_Authors/Crohn.parameters.txt Output/00_Authors/McGregor2025_Fibroblasts.h5ad Output/00_Authors/McGregor2025_scRNA_all.hdf5
 .PHONY: step00
 # Step 01 (Merge input)
 Output/01_Merging:
@@ -139,11 +138,17 @@ step02: $(addprefix Output/02_QC_expressed_genes/,$(addsuffix .cell.tsv.gz,$(CAN
 Output/03_QC_filtering:
 	mkdir -p $@
 
+Output/03_QC_filtering/Figures:
+	mkdir -p $@
+
 Output/03_QC_filtering/%.hdf5: Python/qc_filtering.py Output/01_Merging/%.hdf5 Output/02_QC_expressed_genes/%.cell.tsv.gz Output/02_QC_expressed_genes/%.gene.tsv.gz | Output/03_QC_filtering
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) --min-counts $(QC_MIN_COUNTS) --reference-column "CellAnnotation.Level3" $(QC_OPTIONS) $(LOGGING)
 
-step03-test: Output/03_QC_filtering/Test.hdf5
-step03-optimal: Output/03_QC_filtering/$(OPTIMAL).hdf5
+Output/03_QC_filtering/Figures/%.zip: Python/compare_genes.py Output/01_Merging/%.hdf5 Output/00_Authors/McGregor2025_scRNA_all.hdf5 | Output/03_QC_filtering/Figures
+	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
+
+step03-test: Output/03_QC_filtering/Test.hdf5 Output/03_QC_filtering/Figures/Test.zip
+step03-optimal: Output/03_QC_filtering/$(OPTIMAL).hdf5 Output/03_QC_filtering/Figures/$(OPTIMAL).zip
 step03: $(addprefix Output/03_QC_filtering/,$(addsuffix .hdf5,$(CANCERS)))
 .PHONY: step03-test step03-optimal step03
 
@@ -155,16 +160,19 @@ Output/04_Highly_variable_genes/Figures:
 	mkdir -p $@
 
 Output/04_Highly_variable_genes/%.01_Seurat.hdf5: Python/highly_variable_genes.py Output/03_QC_filtering/%.hdf5 | Output/04_Highly_variable_genes
-	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --flavor "seurat_v3_paper" --n-top-genes 2000 $(HVG_OPTIONS) $(LOGGING)
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --flavor "seurat_v3_paper" --n-top-genes 2000 --subset-column has_pca $(LOGGING)
 
 Output/04_Highly_variable_genes/%.02_Cell_ranger.hdf5: Python/highly_variable_genes.py Output/03_QC_filtering/%.hdf5 | Output/04_Highly_variable_genes
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --flavor "cell_ranger" $(LOGGING)
 
+Output/04_Highly_variable_genes/McGregor2025_scRNA_all.01_Seurat.hdf5: Python/highly_variable_genes.py Output/00_Authors/McGregor2025_scRNA_all.hdf5 | Output/04_Highly_variable_genes
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --flavor "seurat_v3_paper" --n-top-genes 2000 --subset-column has_pca $(LOGGING_TEE)
+
 Output/04_Highly_variable_genes/Figures/%.zip: Python/draw_variable_genes.py Output/04_Highly_variable_genes/%.hdf5 | Output/04_Highly_variable_genes/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-step04-test: Output/04_Highly_variable_genes/Test.01_Seurat.hdf5 Output/04_Highly_variable_genes/Figures/Test.01_Seurat.zip
-step04-optimal: Output/04_Highly_variable_genes/$(OPTIMAL).01_Seurat.hdf5 Output/04_Highly_variable_genes/Figures/$(OPTIMAL).01_Seurat.zip
+step04-test: Output/04_Highly_variable_genes/Test.01_Seurat.hdf5 Output/04_Highly_variable_genes/Figures/Test.01_Seurat.zip Output/04_Highly_variable_genes/McGregor2025_scRNA_all.01_Seurat.hdf5
+step04-optimal: Output/04_Highly_variable_genes/$(OPTIMAL).01_Seurat.hdf5 Output/04_Highly_variable_genes/Figures/$(OPTIMAL).01_Seurat.zip Output/04_Highly_variable_genes/McGregor2025_scRNA_all.01_Seurat.hdf5
 step04: $(addprefix Output/04_Highly_variable_genes/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(DEGS)))) $(addprefix Output/04_Highly_variable_genes/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(DEGS))))
 .PHONY: step04-test step04-optimal step04
 
