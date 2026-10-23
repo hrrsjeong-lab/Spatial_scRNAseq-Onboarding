@@ -29,6 +29,7 @@ missing_reductions <- setdiff(reduction_list, Reductions(obj))
 if (length(missing_reductions) > 0) stop("Reductions not found: ", paste(missing_reductions, collapse = ", "), " (available: ", paste(Reductions(obj), collapse = ", "), ")")
 embedding_list <- lapply(setNames(reduction_list, reduction_list), function(name) Embeddings(obj[[name]]))
 meta_all <- obj@meta.data
+if (!("active.ident" %in% colnames(meta_all))) meta_all$active.ident <- Idents(obj)[rownames(meta_all)]  # labels set by Idents()/RenameIdents() live outside meta.data
 assay_object <- obj[[assay]]
 rm(obj)
 invisible(gc())
