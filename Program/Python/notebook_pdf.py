@@ -36,6 +36,7 @@ CODE_BORDER = "#d0d0d0"
 INPUT_COLOR = "#303f9f"
 OUTPUT_COLOR = "#d84315"
 MUTED_COLOR = "#9e9e9e"
+DISCLAIMER = "This notebook is for reference; please consult the code for the exact implementation."
 
 StyledChar = typing.Tuple[str, str, typing.Tuple[bool, bool]]
 
@@ -211,8 +212,9 @@ class Notebook:
         command = " ".join([os.path.basename(self.argv[0])] + self.argv[1:]) if self.argv else ""
         return [("Script", f"{os.path.basename(self.script)} (md5 {md5})"), ("Command", command), ("Run", self.started.isoformat(timespec="seconds")), ("Python", f"{platform.python_version()}; " + ", ".join(versions))]
 
-    def write_pdf(self, path: str, code_size: float = 7.0, output_lines: int = 60, max_pixels: int = 2000, image_width: float = 0.6, image_height: float = 0.5, min_fraction: float = 1.0) -> str:
+    def write_pdf(self, path: str, code_size: float = 7.0, output_lines: int = 60, max_pixels: int = 2000, image_width: float = 0.6, image_height: float = 0.5, min_fraction: float = 1.0, header_text: str = DISCLAIMER) -> str:
         """
+        header_text: running header printed at the top of every page ("" for none).
         image_width, image_height: largest image size as fractions of the text area (page minus margins); images keep their aspect ratio and are never enlarged.
         min_fraction: an image that does not fit the rest of a page is shrunk into it if it keeps this fraction of its height; otherwise it goes to the next page (1.0: never shrink below the limits above).
         """
@@ -223,7 +225,7 @@ class Notebook:
             matplotlib.rcdefaults()
             matplotlib.rcParams.update({"pdf.fonttype": 42, "ps.fonttype": 42, "pdf.compression": 9})
             with matplotlib.backends.backend_pdf.PdfPages(path, metadata={"Title": self.title, "Subject": os.path.basename(self.script)}) as pdf:
-                writer = _Writer(pdf, self.title, code_size, rendered)
+                writer = _Writer(pdf, self.title, code_size, rendered, header_text)
                 writer.header(self.title, self.header_items())
                 for number, cell in enumerate(self.cells, start=1):
                     writer.cell(number, cell, output_lines, max_pixels, (image_width, image_height), min_fraction)
@@ -236,14 +238,15 @@ class _Writer:
     footer = 0.3
     padding = 0.1
 
-    def __init__(self, pdf: matplotlib.backends.backend_pdf.PdfPages, title: str, code_size: float, rendered: str) -> None:
+    def __init__(self, pdf: matplotlib.backends.backend_pdf.PdfPages, title: str, code_size: float, rendered: str, header_text: str = "") -> None:
         self.pdf = pdf
         self.title = title
         self.rendered = rendered
+        self.header_text = header_text
         self.width, self.height = A4_PORTRAIT
         self.left = self.margin
         self.right = self.width - self.margin
-        self.top = self.height - self.margin
+        self.top = self.height - self.margin - (self.footer if header_text else 0.0)
         self.bottom = self.margin + self.footer
         self.line_height = code_size * 1.35 / 72
         self.mono = {(bold, italic): matplotlib.font_manager.FontProperties(family="monospace", size=code_size, weight=("bold" if bold else "normal"), style=("italic" if italic else "normal")) for bold in (False, True) for italic in (False, True)}
@@ -267,6 +270,8 @@ class _Writer:
 
     def finish_page(self) -> None:
         assert self.fig is not None
+        if self.header_text:
+            self.fig.text(self.width / 2, self.height - self.margin - 0.1, self.header_text, transform=self.fig.dpi_scale_trans, ha="center", va="baseline", fontsize=7, fontstyle="italic", color=MUTED_COLOR, parse_math=False)
         self.fig.text(self.width / 2, self.margin, f"{self.title}  |  rendered {self.rendered}  |  page {self.page}", transform=self.fig.dpi_scale_trans, ha="center", va="baseline", fontsize=7, color=MUTED_COLOR, parse_math=False)
         self.pdf.savefig(self.fig)
         self.fig = None
