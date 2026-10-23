@@ -82,13 +82,11 @@ def check_suffixes(filenames: typing.List[str], suffixes: typing.Set[str]) -> No
 
 
 def check_cpus(cpus: int) -> None:
-    if cpus < 1:
-        raise ValueError(cpus_error_message)
+    assert cpus > 0, cpus_error_message
 
 
 def confidence_ellipse(x: typing.List[float], y: typing.List[float], ax, n_std: float = 2.0, facecolor: str = "none", **kwargs) -> matplotlib.patches.Patch:
-    if len(x) != len(y):
-        raise ValueError("x and y must be the same size!!")
+    assert (len(x) == len(y)), f"x={len(x)} and y={len(y)} must be the same size!!"
 
     if len(x) < 3:
         return matplotlib.patches.Ellipse((0, 0), width=0, height=0, facecolor=facecolor, **kwargs)
@@ -113,8 +111,7 @@ def confidence_ellipse(x: typing.List[float], y: typing.List[float], ax, n_std: 
 def pvalue_format(p_value: float) -> str:
     thresholds = [1e-4, 1e-3, 1e-2, 5e-2]
 
-    if not (0.0 <= p_value <= 1.0):
-        raise ValueError(f"p={p_value} is not a valid p-value!!")
+    assert (0.0 <= p_value <= 1.0), f"p={p_value} is not a valid p-value!!"
 
     if p_value > thresholds[-1]:
         return f"p={p_value:.3f}"
@@ -185,6 +182,5 @@ def evaluate_confusion_matrix(confusion_matrix: numpy.ndarray) -> typing.Dict[st
 
 def parse_dims(dims: str) -> slice:
     start, end = (int(value) for value in dims.split(":")) if (":" in dims) else (1, int(dims))
-    if not (1 <= start <= end):
-        raise ValueError(f"Invalid dims {dims}!!")
+    assert  (1 <= start <= end), f"Invalid dims {dims}!!"
     return slice(start - 1, end)
