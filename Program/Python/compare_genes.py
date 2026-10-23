@@ -27,11 +27,12 @@ if __name__ == "__main__":
 
     notebook = notebook_pdf.Notebook(title="QC filtered data", script=__file__)
 
-    xenium_adata = scanpy.read_h5ad(args.xenium, backed="r")
-    print(xenium_adata)
+    with notebook.cell("Input data"):
+        xenium_adata = scanpy.read_h5ad(args.xenium, backed="r")
+        print(xenium_adata)
 
-    scrna_adata = scanpy.read_h5ad(args.scrna, backed="r")
-    print(scrna_adata)
+        scrna_adata = scanpy.read_h5ad(args.scrna, backed="r")
+        print(scrna_adata)
 
     matplotlib.use("Agg")
     matplotlib.rcParams.update(step00.matplotlib_parameters)
