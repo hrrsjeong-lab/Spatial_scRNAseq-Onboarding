@@ -5,6 +5,7 @@ import ast
 import contextlib
 import dataclasses
 import datetime
+import functools
 import hashlib
 import importlib.metadata
 import inspect
@@ -70,6 +71,33 @@ class _Tee:
         return False
 
 
+def _record_png(savefig: typing.Callable, cell: Cell, owners: typing.List[matplotlib.figure.Figure]) -> typing.Callable:
+    """Wrap Figure.savefig so that the PNG files saved inside a cell are shown under that cell (one image per figure: the last PNG saved)."""
+
+    @functools.wraps(savefig)
+    def wrapper(figure: matplotlib.figure.Figure, fname, *args, **kwargs):
+        result = savefig(figure, fname, *args, **kwargs)
+        if isinstance(fname, (str, os.PathLike)):
+            path = os.path.abspath(os.fspath(fname))
+            file_format = kwargs.get("format")
+            if file_format is None:
+                file_format = os.path.splitext(path)[1].lstrip(".")
+                if not file_format:  # matplotlib appends the default extension
+                    file_format = matplotlib.rcParams["savefig.format"]
+                    path = f"{path}.{file_format}"
+            if str(file_format).lower() == "png":
+                for index, owner in enumerate(owners):
+                    if owner is figure:
+                        cell.images[index] = path
+                        break
+                else:
+                    owners.append(figure)
+                    cell.images.append(path)
+        return result
+
+    return wrapper
+
+
 class _CellContext:
     def __init__(self, notebook: "Notebook", title: str, note: str) -> None:
         self.notebook = notebook
@@ -88,11 +116,16 @@ class _CellContext:
         self.buffer = io.StringIO()
         self.redirect = contextlib.redirect_stdout(_Tee(sys.stdout, self.buffer))  # type: ignore[type-var]
         self.redirect.__enter__()
+        self.owners: typing.List[matplotlib.figure.Figure] = list()
+        self.original_savefig = matplotlib.figure.Figure.savefig
+        matplotlib.figure.Figure.savefig = _record_png(self.original_savefig, self.cell, self.owners)  # type: ignore[method-assign]
         self.start = time.perf_counter()
         return self.cell
 
     def __exit__(self, exc_type, exc_value, traceback) -> bool:
         self.cell.seconds = time.perf_counter() - self.start
+        matplotlib.figure.Figure.savefig = self.original_savefig  # type: ignore[method-assign]
+        self.owners.clear()
         self.redirect.__exit__(exc_type, exc_value, traceback)
         self.cell.output = self.buffer.getvalue()
         self.notebook.current = None
@@ -104,8 +137,8 @@ class Notebook:
     Usage:
         notebook = Notebook("Title", __file__)
         with notebook.cell("Step name", "Optional note"):
-            ...  # the code of this block, its printed text and the figures saved by notebook.save_figure() form one cell
-        notebook.write_pdf("Notebook.pdf")
+            ...  # the code of this block, its printed text and the PNG saved by fig.savefig() for each figure in it form one cell
+        notebook.write_pdf("Notebook.pdf")  # images at most 60% of the text width and 50% of its height
     """
 
     def __init__(self, title: str, script: str, packages: typing.Sequence[str] = ("anndata", "scanpy", "matplotlib", "numpy", "pandas"), show_imports: bool = True) -> None:
@@ -156,17 +189,14 @@ class Notebook:
         return _CellContext(self, title, note)
 
     def save_figure(self, fig: matplotlib.figure.Figure, stem: str, formats: typing.Sequence[str] = ("pdf", "png"), **kwargs) -> typing.List[str]:
-        """Save as {stem}.pdf and {stem}.png, close the figure and show the PNG under the current cell."""
-        if "png" not in formats:
-            raise ValueError("The PNG file is needed for the notebook PDF")
+        """Save as {stem}.pdf and {stem}.png (bbox_inches="tight" unless given) and close the figure; inside a cell the PNG is shown under that cell."""
+        kwargs.setdefault("bbox_inches", "tight")
         paths = list()
         for suffix in formats:
             paths.append(f"{stem}.{suffix}")
             fig.savefig(paths[-1], **kwargs)
         matplotlib.pyplot.close(fig)
         self.figure_files.extend(paths)
-        if self.current is not None:
-            self.current.images.append(f"{stem}.png")
         return paths
 
     def header_items(self) -> typing.List[typing.Tuple[str, str]]:
@@ -179,17 +209,24 @@ class Notebook:
             except importlib.metadata.PackageNotFoundError:
                 continue
         command = " ".join([os.path.basename(self.argv[0])] + self.argv[1:]) if self.argv else ""
-        return [("Script", f"{os.path.basename(self.script)} (md5 {md5})"), ("Command", command), ("Run", self.started.strftime("%Y-%m-%d %H:%M:%S %Z")), ("Python", f"{platform.python_version()}; " + ", ".join(versions))]
+        return [("Script", f"{os.path.basename(self.script)} (md5 {md5})"), ("Command", command), ("Run", self.started.isoformat(timespec="seconds")), ("Python", f"{platform.python_version()}; " + ", ".join(versions))]
 
-    def write_pdf(self, path: str, code_size: float = 7.0, output_lines: int = 60, max_pixels: int = 2000) -> str:
+    def write_pdf(self, path: str, code_size: float = 7.0, output_lines: int = 60, max_pixels: int = 2000, image_width: float = 0.6, image_height: float = 0.5, min_fraction: float = 1.0) -> str:
+        """
+        image_width, image_height: largest image size as fractions of the text area (page minus margins); images keep their aspect ratio and are never enlarged.
+        min_fraction: an image that does not fit the rest of a page is shrunk into it if it keeps this fraction of its height; otherwise it goes to the next page (1.0: never shrink below the limits above).
+        """
+        if not ((0 < image_width <= 1) and (0 < image_height <= 1)):
+            raise ValueError(f"image_width={image_width} and image_height={image_height} must be in (0, 1]")
+        rendered = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
         with matplotlib.rc_context():
             matplotlib.rcdefaults()
             matplotlib.rcParams.update({"pdf.fonttype": 42, "ps.fonttype": 42, "pdf.compression": 9})
             with matplotlib.backends.backend_pdf.PdfPages(path, metadata={"Title": self.title, "Subject": os.path.basename(self.script)}) as pdf:
-                writer = _Writer(pdf, self.title, code_size)
+                writer = _Writer(pdf, self.title, code_size, rendered)
                 writer.header(self.title, self.header_items())
                 for number, cell in enumerate(self.cells, start=1):
-                    writer.cell(number, cell, output_lines, max_pixels)
+                    writer.cell(number, cell, output_lines, max_pixels, (image_width, image_height), min_fraction)
                 writer.close()
         return path
 
@@ -199,9 +236,10 @@ class _Writer:
     footer = 0.3
     padding = 0.1
 
-    def __init__(self, pdf: matplotlib.backends.backend_pdf.PdfPages, title: str, code_size: float) -> None:
+    def __init__(self, pdf: matplotlib.backends.backend_pdf.PdfPages, title: str, code_size: float, rendered: str) -> None:
         self.pdf = pdf
         self.title = title
+        self.rendered = rendered
         self.width, self.height = A4_PORTRAIT
         self.left = self.margin
         self.right = self.width - self.margin
@@ -229,7 +267,7 @@ class _Writer:
 
     def finish_page(self) -> None:
         assert self.fig is not None
-        self.fig.text(self.width / 2, self.margin, f"{self.title}  |  page {self.page}", transform=self.fig.dpi_scale_trans, ha="center", va="baseline", fontsize=7, color=MUTED_COLOR, parse_math=False)
+        self.fig.text(self.width / 2, self.margin, f"{self.title}  |  rendered {self.rendered}  |  page {self.page}", transform=self.fig.dpi_scale_trans, ha="center", va="baseline", fontsize=7, color=MUTED_COLOR, parse_math=False)
         self.pdf.savefig(self.fig)
         self.fig = None
 
@@ -332,26 +370,40 @@ class _Writer:
         self.fig.add_artist(matplotlib.lines.Line2D([self.left, self.right], [self.y, self.y], transform=self.fig.dpi_scale_trans, color=CODE_BORDER, linewidth=0.8))
         self.y -= 0.2
 
-    def image(self, path: str, max_pixels: int) -> None:
+    def image(self, path: str, max_pixels: int, max_size: typing.Tuple[float, float] = (1.0, 1.0), min_fraction: float = 1.0) -> None:
+        """Place a PNG at its original aspect ratio; shrink it (never enlarge) to at most max_size (fractions of the text area width and height)."""
+        pad = 0.05
+        if not os.path.exists(path):
+            self.paragraph(f"(image not found: {path})", 8, color=MUTED_COLOR)
+            return
         with PIL.Image.open(path) as opened:
+            dpi = opened.info.get("dpi", (0, 0))[0]
+            pixel_width, pixel_height = opened.size
             image = opened.convert("RGB")
         image.thumbnail((max_pixels, max_pixels))
         array = numpy.asarray(image)
-        width = self.right - self.left
-        height = width * array.shape[0] / array.shape[1]
-        if height > self.top - self.bottom:
-            height = self.top - self.bottom
-            width = height * array.shape[1] / array.shape[0]
-        self.fit(height + 0.1)
-        assert self.fig is not None
-        x = self.left + (self.right - self.left - width) / 2
-        y = self.y - 0.05 - height
-        ax = self.fig.add_axes((x / self.width, y / self.height, width / self.width, height / self.height))
-        ax.imshow(array, interpolation="none")
-        ax.set_axis_off()
-        self.y = y - 0.05
 
-    def cell(self, number: int, cell: Cell, output_lines: int, max_pixels: int) -> None:
+        page_width = self.right - self.left
+        page_height = self.top - self.bottom - 2 * pad
+        natural_width, natural_height = (pixel_width / dpi, pixel_height / dpi) if dpi else (page_width, page_width * pixel_height / pixel_width)
+        scale = min(1.0, max_size[0] * page_width / natural_width, max_size[1] * page_height / natural_height)
+        width, height = natural_width * scale, natural_height * scale
+
+        room = self.y - self.bottom - 2 * pad
+        if height > room:
+            if room >= min_fraction * height:  # shrink further into the rest of this page
+                width, height = width * room / height, room
+            else:
+                self.new_page()
+        assert self.fig is not None
+        x = self.left + (page_width - width) / 2
+        y = self.y - pad - height
+        ax = self.fig.add_axes((x / self.width, y / self.height, width / self.width, height / self.height))
+        ax.imshow(array, interpolation="none", aspect="equal")
+        ax.set_axis_off()
+        self.y = y - pad
+
+    def cell(self, number: int, cell: Cell, output_lines: int, max_pixels: int, max_size: typing.Tuple[float, float], min_fraction: float) -> None:
         self.fit(0.35 + 3 * self.line_height)
         label = f"In [{number}]:"
         self.text(self.left, self.y - 0.16, label, color=INPUT_COLOR, fontproperties=self.mono[(True, False)], fontsize=9)
@@ -378,5 +430,5 @@ class _Writer:
             self.block(self.plain_rows("\n".join(lines), self.columns), 0, "white", "none")
 
         for image in cell.images:
-            self.image(image, max_pixels)
+            self.image(image, max_pixels, max_size, min_fraction)
         self.y -= 0.25
