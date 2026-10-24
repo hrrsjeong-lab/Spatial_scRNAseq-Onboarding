@@ -1,5 +1,6 @@
 import argparse
 import numpy
+import pandas
 import scanpy
 import trimap
 import step00
@@ -9,6 +10,7 @@ if __name__ == "__main__":
 
     parser.add_argument("input", help="Input HDF5 file", type=str)
     parser.add_argument("output", help="Output HDF5 file", type=str)
+    parser.add_argument("--scrna", help="scRNA HDF5 file", type=str, default="")
     parser.add_argument("--cpus", help="CPUs to use", type=int, default=1)
 
     args = parser.parse_args()
@@ -21,6 +23,32 @@ if __name__ == "__main__":
 
     input_adata = scanpy.read_h5ad(args.input)
     print(input_adata)
+
+    if args.scrna:
+        step00.check_suffix(args.scrna, {".hdf5", ".h5"})
+        scrna_adata = scanpy.read_h5ad(args.scrna)
+        print(scrna_adata)
+
+        input_adata = scanpy.concat([input_adata, scrna_adata], axis="obs", join="inner", label=step00.omics_column, keys=["Xenium", "scRNA"])
+        print(input_adata)
+
+    sketch_mask = input_adata.obs[step00.sketch_column].to_numpy(dtype=bool)
+    sample_array = input_adata.obs[step00.sample_column].astype(str).to_numpy()
+    harmony_full = numpy.asarray(input_adata.obsm[step00.harmony_key], dtype=numpy.float64)[:, :30]
+    print(pandas.DataFrame(harmony_full))
+
+    finite_mask = numpy.isfinite(harmony_full).all(axis=1)
+    if not finite_mask.all():
+        print(pandas.Series(sample_array[~finite_mask]).value_counts().to_string())
+        raise ValueError(f"{int((~finite_mask).sum())} cells have NaN/Inf in {step00.harmony_key}!!")
+
+    norm = numpy.linalg.norm(harmony_full, axis=1)
+    zero_mask = (norm == 0)
+    input_adata.obs["zero_input"] = zero_mask
+    print("Cells with an all-zero input:", int(zero_mask.sum()))
+
+    if zero_mask.any():
+        print(pandas.Series(sample_array[zero_mask]).value_counts().to_string())
 
     projection_input = numpy.ascontiguousarray(input_adata.obsm[step00.harmony_key], dtype=numpy.float32)
     print("TriMap input:", projection_input.shape, projection_input.dtype)
