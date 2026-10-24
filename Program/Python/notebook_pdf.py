@@ -1,5 +1,10 @@
 """
 notebook_pdf.py: Jupyter-like PDF report (code cell, printed output, figures) for sharing analysis scripts
+
+import notebook_pdf
+notebook = notebook_pdf.Notebook(title="Compare variable genes", script=__file__)
+with notebook.cell("Read data"):
+notebook.write_pdf(args.output)
 """
 import ast
 import contextlib
@@ -220,6 +225,10 @@ class Notebook:
         """
         if not ((0 < image_width <= 1) and (0 < image_height <= 1)):
             raise ValueError(f"image_width={image_width} and image_height={image_height} must be in (0, 1]")
+
+        filename, _ = os.path.splitext(path)
+        path = filename + ".pdf"
+
         rendered = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
         with matplotlib.rc_context():
             matplotlib.rcdefaults()
