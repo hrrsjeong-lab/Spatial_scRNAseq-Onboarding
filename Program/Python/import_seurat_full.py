@@ -21,7 +21,7 @@ def read_layer(directory: pathlib.Path, layer: str, n_genes: int, n_cells: int) 
 
 
 def clean_frame(frame: pandas.DataFrame) -> pandas.DataFrame:
-    for column in frame.columns:
+    for column in tqdm.tqdm(frame.columns):
         if frame[column].dtype == object:
             values = frame[column]
             frame[column] = pandas.Categorical(values.where(values.isna(), values.astype(str)))
@@ -50,7 +50,6 @@ def copy_label(obs: pandas.DataFrame, source: str, target: str) -> None:
 
 
 def log_normalize(counts: scipy.sparse.csr_matrix) -> scipy.sparse.csr_matrix:
-    """log1p(counts / total * 1e4): Seurat LogNormalize and qc_filtering.py (normalize_total 1e4 + log1p)"""
     totals = numpy.asarray(counts.sum(axis=1), dtype=numpy.float64).ravel()
     scale = numpy.divide(1e4, totals, out=numpy.zeros_like(totals), where=(totals > 0))
     normalized = scipy.sparse.diags(scale) @ counts.astype(numpy.float64)
