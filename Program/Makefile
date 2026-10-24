@@ -74,16 +74,16 @@ Output/00_Authors/Crohn.parameters.txt: R/dump_seurat_parameters.R /home/Store/P
 Output/00_Authors/McGregor2025_Fibroblasts/obs.csv.gz: R/export_seurat_full.R /home/Store/PMC12804086/scRNA-seq/scrna_seq_meta_analysis_fibroblasts.RDS | Output/00_Authors
 	$(SLURM) $(R) $(abspath $^) $(abspath $(@D)) --assay=RNA_CLEAN --layers=counts,data --reductions=all $(LOGGING_DIR)
 
-Output/00_Authors/McGregor2025_Fibroblasts.h5ad: Python/import_seurat_full.py Output/00_Authors/McGregor2025_Fibroblasts/obs.csv.gz
-	$(SLURM) $(PYTHON) $(abspath $^ $@) --celltype-column "CellAnnotation.Level2" $(LOGGING)
+Output/00_Authors/McGregor2025_Fibroblasts.hdf5: Python/import_seurat_full.py Output/00_Authors/McGregor2025_Fibroblasts/obs.csv.gz
+	$(SLURM) $(PYTHON) $(abspath $^ $@) --celltype-column "CellAnnotation.Level2" $(LOGGING_TEE)
 
 Output/00_Authors/McGregor2025_scRNA_all/obs.csv.gz: R/export_seurat_full.R /home/Store/PMC12804086/scRNA-seq/scrna_seq_all_cells-6eGUr1.RDS | Output/00_Authors
 	$(SLURM) $(R) $(abspath $^) $(abspath $(@D)) --layers=counts,data --reductions=all $(LOGGING_DIR)
 
 Output/00_Authors/McGregor2025_scRNA_all.hdf5: Python/import_seurat_full.py Output/00_Authors/McGregor2025_scRNA_all/obs.csv.gz
-	$(SLURM) $(PYTHON) $(abspath $^ $@) --celltype-column "active.ident" $(LOGGING)
+	$(SLURM) $(PYTHON) $(abspath $^ $@) --celltype-column "active.ident" $(LOGGING_TEE)
 
-step00: Output/00_Authors/Crohn.parameters.txt Output/00_Authors/McGregor2025_Fibroblasts.h5ad Output/00_Authors/McGregor2025_scRNA_all.hdf5
+step00: Output/00_Authors/Crohn.parameters.txt Output/00_Authors/McGregor2025_Fibroblasts.hdf5 Output/00_Authors/McGregor2025_scRNA_all.hdf5
 .PHONY: step00
 
 # Step 01 (Merge input)
