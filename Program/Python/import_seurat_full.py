@@ -5,11 +5,11 @@ import anndata
 import numpy
 import pandas
 import scipy.sparse
+import tqdm
+import notebook_pdf
 import step00
 
-# Seurat reduction name -> obsm key used by the pipeline (step00); other reductions keep X_<name>
 reduction_keys = {"pca": step00.pca_key, "harmony": step00.harmony_key, "umap": step00.projection_key}
-# meta.data columns tried in order for step00.sample_column when --sample-column is not given
 sample_candidates = [step00.sample_column, "SAMPLE_ID", "SAMPLE", "sample", "sample_id", "Sample_ID", "Donor", "orig.ident"]
 
 
@@ -73,73 +73,79 @@ if __name__ == "__main__":
     step00.check_suffix(args.output, {".h5ad", ".h5", ".hdf5"})
     directory = pathlib.Path(args.input).parent
 
-    n_genes, n_cells = (int(value) for value in (directory / "shape.txt").read_text().split())
-    genes = (directory / "genes.txt").read_text().splitlines()
-    cells = (directory / "cells.txt").read_text().splitlines()
-    if (len(genes), len(cells)) != (n_genes, n_cells):
-        raise ValueError(f"shape {n_genes}x{n_cells} vs genes.txt {len(genes)} / cells.txt {len(cells)}")
+    notebook = notebook_pdf.Notebook(title="Import RDS file", script=__file__)
 
-    # Cells: pipeline columns from step00
-    obs = pandas.read_csv(args.input, index_col="cell_id", low_memory=False)
-    obs.index = obs.index.astype(str)
-    obs.index.name = None
-    obs = clean_frame(obs.loc[cells])
-    sample_source = choose_sample_column(obs, args.sample_column)
-    copy_label(obs, sample_source, step00.sample_column)
-    if obs[step00.sample_column].isna().any():
-        raise ValueError(f"{int(obs[step00.sample_column].isna().sum()):,} cells have no {sample_source}")
-    if args.celltype_column is not None:
-        copy_label(obs, args.celltype_column, step00.celltype_column)
-    if args.clustering_column is not None:
-        copy_label(obs, args.clustering_column, step00.clustering_column)
-    cells_per_sample = obs[step00.sample_column].value_counts()
-    print(f"{step00.sample_column}: {len(cells_per_sample)} samples; cells per sample min {cells_per_sample.min():,}, median {int(cells_per_sample.median()):,}, max {cells_per_sample.max():,}")
+    with notebook.cell("Read data"):
+        n_genes, n_cells = (int(value) for value in (directory / "shape.txt").read_text().split())
+        genes = (directory / "genes.txt").read_text().splitlines()
+        cells = (directory / "cells.txt").read_text().splitlines()
+        assert (len(genes), len(cells)) == (n_genes, n_cells), f"shape {n_genes}x{n_cells} vs genes.txt {len(genes)} / cells.txt {len(cells)}"
 
-    # Genes
-    var = pandas.DataFrame(index=pandas.Index(genes))
-    if (directory / "var.csv.gz").exists():
-        feature_meta = pandas.read_csv(directory / "var.csv.gz", index_col="gene", low_memory=False)
-        feature_meta.index = feature_meta.index.astype(str)
-        var = var.join(feature_meta, how="left")
-    variable_features = set((directory / "variable_features.txt").read_text().split()) if (directory / "variable_features.txt").exists() else set()
-    var["highly_variable"] = var.index.isin(variable_features)
-    var = clean_frame(var)
+    with notebook.cell("Cells"):
+        obs = pandas.read_csv(args.input, index_col="cell_id")
+        obs.index = obs.index.astype(str)
+        obs.index.name = None
+        obs = clean_frame(obs.loc[cells])
+        sample_source = choose_sample_column(obs, args.sample_column)
+        copy_label(obs, sample_source, step00.sample_column)
+        if obs[step00.sample_column].isna().any():
+            raise ValueError(f"{int(obs[step00.sample_column].isna().sum()):,} cells have no {sample_source}")
+        if args.celltype_column is not None:
+            copy_label(obs, args.celltype_column, step00.celltype_column)
+        if args.clustering_column is not None:
+            copy_label(obs, args.clustering_column, step00.clustering_column)
+        cells_per_sample = obs[step00.sample_column].value_counts()
+        print(f"{step00.sample_column}: {len(cells_per_sample)} samples; cells per sample min {cells_per_sample.min():,}, median {int(cells_per_sample.median()):,}, max {cells_per_sample.max():,}")
 
-    # X = counts; layers[step00.log_column] = Seurat data layer, or log1p(CP10k) when it was not exported
-    layer_list = (directory / "layers.txt").read_text().split()
-    adata = anndata.AnnData(X=read_layer(directory, "counts", n_genes, n_cells), obs=obs, var=var)
-    for layer in layer_list:
-        if layer != "counts":
-            adata.layers[step00.log_column if (layer == "data") else layer] = read_layer(directory, layer, n_genes, n_cells)
+    with notebook.cell("Genes"):
+        var = pandas.DataFrame(index=pandas.Index(genes))
+        if (directory / "var.csv.gz").exists():
+            feature_meta = pandas.read_csv(directory / "var.csv.gz", index_col="gene", low_memory=False)
+            feature_meta.index = feature_meta.index.astype(str)
+            var = var.join(feature_meta, how="left")
+        variable_features = set((directory / "variable_features.txt").read_text().split()) if (directory / "variable_features.txt").exists() else set()
+        var["highly_variable"] = var.index.isin(variable_features)
+        var = clean_frame(var)
 
-    check_cells = min(1000, adata.n_obs)
-    recomputed = log_normalize(adata.X[:check_cells])
-    if "data" in layer_list:
-        difference = abs(adata.layers[step00.log_column][:check_cells] - recomputed).max()
-        log_source = "Seurat data layer"
-        print(f"layers['{step00.log_column}'] = Seurat data; max |data - log1p(CP10k)| on {check_cells:,} cells: {difference:.3g}")
-        if difference > 1e-3:
-            print(f"WARNING: the Seurat data layer is not log1p(CP10k) of counts (e.g. SCT or another scale factor); downstream steps treat layers['{step00.log_column}'] as log1p(CP10k)")
-    else:
-        adata.layers[step00.log_column] = log_normalize(adata.X)
-        log_source = "log1p(CP10k) computed from counts"
-        print(f"layers['{step00.log_column}'] computed as log1p(CP10k): no Seurat data layer was exported")
+    with notebook.cell("Counts"):
+        layer_list = (directory / "layers.txt").read_text().split()
+        adata = anndata.AnnData(X=read_layer(directory, "counts", n_genes, n_cells), obs=obs, var=var)
+        for layer in tqdm.tqdm(layer_list):
+            if layer != "counts":
+                adata.layers[step00.log_column if (layer == "data") else layer] = read_layer(directory, layer, n_genes, n_cells)
 
-    # Reductions: pipeline obsm keys from step00
-    reduction_list = (directory / "reductions.txt").read_text().split() if (directory / "reductions.txt").exists() else list()
-    obsm_keys: typing.Dict[str, str] = dict()
-    for reduction in reduction_list:
-        embedding = pandas.read_csv(directory / f"reduction_{reduction}.csv.gz", index_col="cell_id")
-        embedding.index = embedding.index.astype(str)
-        embedding = embedding.reindex(adata.obs_names)
-        obsm_keys[reduction] = reduction_keys.get(reduction, f"X_{reduction}")
-        adata.obsm[obsm_keys[reduction]] = embedding.to_numpy(dtype=numpy.float32)
-        adata.obs[f"has_{reduction}"] = embedding.notna().all(axis=1).to_numpy()
-        print(f"obsm['{obsm_keys[reduction]}'] <- Seurat {reduction}: {embedding.shape[1]} dims, {int(adata.obs[f'has_{reduction}'].sum()):,}/{adata.n_obs:,} cells")
+    with notebook.cell("Check cells"):
+        check_cells = min(1000, adata.n_obs)
+        recomputed = log_normalize(adata.X[:check_cells])
+        if "data" in layer_list:
+            difference = abs(adata.layers[step00.log_column][:check_cells] - recomputed).max()
+            log_source = "Seurat data layer"
+            print(f"layers['{step00.log_column}'] = Seurat data; max |data - log1p(CP10k)| on {check_cells:,} cells: {difference:.3g}")
+            if difference > 1e-3:
+                print(f"WARNING: the Seurat data layer is not log1p(CP10k) of counts (e.g. SCT or another scale factor); downstream steps treat layers['{step00.log_column}'] as log1p(CP10k)")
+        else:
+            adata.layers[step00.log_column] = log_normalize(adata.X)
+            log_source = "log1p(CP10k) computed from counts"
+            print(f"layers['{step00.log_column}'] computed as log1p(CP10k): no Seurat data layer was exported")
 
-    adata.uns["seurat"] = {"source": str(directory), "layers": layer_list, "reductions": reduction_list, "obsm_keys": obsm_keys, "log_layer": log_source, "columns": {step00.sample_column: sample_source, step00.celltype_column: (args.celltype_column or ""), step00.clustering_column: (args.clustering_column or "")}, "object": (directory / "object.txt").read_text() if (directory / "object.txt").exists() else ""}
-    sample_values = adata.X[:100].toarray()
-    print("X integer-valued (first 100 cells):", bool(numpy.allclose(sample_values, numpy.round(sample_values))))
-    print("Highly variable genes:", int(adata.var["highly_variable"].sum()))
-    print(adata)
-    adata.write_h5ad(args.output, **step00.anndata_compressions)
+    with notebook.cell("Reductions"):
+        reduction_list = (directory / "reductions.txt").read_text().split() if (directory / "reductions.txt").exists() else list()
+        obsm_keys: typing.Dict[str, str] = dict()
+        for reduction in tqdm.tqdm(reduction_list):
+            embedding = pandas.read_csv(directory / f"reduction_{reduction}.csv.gz", index_col="cell_id")
+            embedding.index = embedding.index.astype(str)
+            embedding = embedding.reindex(adata.obs_names)
+            obsm_keys[reduction] = reduction_keys.get(reduction, f"X_{reduction}")
+            adata.obsm[obsm_keys[reduction]] = embedding.to_numpy(dtype=numpy.float32)
+            adata.obs[f"has_{reduction}"] = embedding.notna().all(axis=1).to_numpy()
+            print(f"obsm['{obsm_keys[reduction]}'] <- Seurat {reduction}: {embedding.shape[1]} dims, {int(adata.obs[f'has_{reduction}'].sum()):,}/{adata.n_obs:,} cells")
+
+    with notebook.cell("Save"):
+        adata.uns["seurat"] = {"source": str(directory), "layers": layer_list, "reductions": reduction_list, "obsm_keys": obsm_keys, "log_layer": log_source, "columns": {step00.sample_column: sample_source, step00.celltype_column: (args.celltype_column or ""), step00.clustering_column: (args.clustering_column or "")}, "object": (directory / "object.txt").read_text() if (directory / "object.txt").exists() else ""}
+        sample_values = adata.X[:100].toarray()
+        print("X integer-valued (first 100 cells):", bool(numpy.allclose(sample_values, numpy.round(sample_values))))
+        print("Highly variable genes:", int(adata.var["highly_variable"].sum()))
+        print(adata)
+        adata.write_h5ad(args.output, **step00.anndata_compressions)
+
+    notebook.write_pdf(args.output)
