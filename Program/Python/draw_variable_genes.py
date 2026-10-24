@@ -122,9 +122,8 @@ if __name__ == "__main__":
                 fig.savefig(figure_list[-1])
                 matplotlib.pyplot.close(fig)
 
-        figure_list.append(f"{directory}/Notebook.pdf")
-        notebook.write_pdf(figure_list[-1])
-
         with zipfile.ZipFile(args.output, mode="w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as zip_file:
             for figure in tqdm.tqdm(figure_list):
                 zip_file.write(figure, arcname=os.path.basename(figure))
+
+        notebook.write_pdf(args.output)

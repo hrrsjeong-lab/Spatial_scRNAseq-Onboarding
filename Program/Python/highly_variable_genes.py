@@ -3,6 +3,7 @@ import pandas
 import scanpy
 import rapids_singlecell
 import tqdm
+import notebook_pdf
 import step00
 
 if __name__ == "__main__":
@@ -26,43 +27,52 @@ if __name__ == "__main__":
     elif args.union and (not args.flavor.startswith("seurat_v3")):
         raise ValueError("--union requires seurat_v3 flavors!!")
 
-    input_adata = scanpy.read_h5ad(args.input)
-    input_adata.X = step00.safe_matrix(input_adata.X)
-    print(input_adata)
+    notebook = notebook_pdf.Notebook(title="Highly variable genes", script=__file__)
 
-    subset_mask = None if (args.subset_column is None) else input_adata.obs[args.subset_column].to_numpy(dtype=bool)
-    hvg_adata = input_adata if (subset_mask is None) else input_adata[subset_mask].copy()
-    print("Cells for HVG selection:", hvg_adata.n_obs)
+    with notebook.cell("Input data"):
+        input_adata = scanpy.read_h5ad(args.input)
+        input_adata.X = step00.safe_matrix(input_adata.X)
+        print(input_adata)
 
-    rapids_singlecell.get.anndata_to_GPU(hvg_adata)
-    if args.flavor.startswith("seurat_v3"):
-        for span in args.spans:
-            try:
-                rapids_singlecell.pp.highly_variable_genes(hvg_adata, flavor=args.flavor, n_top_genes=args.n_top_genes, batch_key=step00.sample_column, layer=None, span=span)
-                break
-            except ValueError as error:
-                print(f"WARNING: loess failed with span {span}: {error}")
+    with notebook.cell("Get mask"):
+        subset_mask = None if (args.subset_column is None) else input_adata.obs[args.subset_column].to_numpy(dtype=bool)
+        hvg_adata = input_adata if (subset_mask is None) else input_adata[subset_mask].copy()
+        print("Cells for HVG selection:", hvg_adata.n_obs)
+
+    with notebook.cell("HVGs"):
+        rapids_singlecell.get.anndata_to_GPU(hvg_adata)
+        if args.flavor.startswith("seurat_v3"):
+            for span in args.spans:
+                try:
+                    rapids_singlecell.pp.highly_variable_genes(hvg_adata, flavor=args.flavor, n_top_genes=args.n_top_genes, batch_key=step00.sample_column, layer=None, span=span)
+                    break
+                except ValueError as error:
+                    print(f"WARNING: loess failed with span {span}: {error}")
+            else:
+                raise RuntimeError(f"loess failed with every span {args.spans}!!")
+            print("loess span used:", span)
+            hvg_adata.uns["hvg"] = dict(hvg_adata.uns.get("hvg", dict()), span=span)
+            if args.union:
+                hvg_adata.var["highly_variable"] = hvg_adata.var["highly_variable_nbatches"] > 0
         else:
-            raise RuntimeError(f"loess failed with every span {args.spans}!!")
-        print("loess span used:", span)
-        hvg_adata.uns["hvg"] = dict(hvg_adata.uns.get("hvg", dict()), span=span)
-        if args.union:
-            hvg_adata.var["highly_variable"] = hvg_adata.var["highly_variable_nbatches"] > 0
-    else:
-        rapids_singlecell.get.anndata_to_GPU(hvg_adata, layer=step00.log_column)
-        rapids_singlecell.pp.highly_variable_genes(hvg_adata, flavor=args.flavor, n_top_genes=(args.n_top_genes if (args.n_top_genes > 0) else None), layer=step00.log_column)
+            rapids_singlecell.get.anndata_to_GPU(hvg_adata, layer=step00.log_column)
+            rapids_singlecell.pp.highly_variable_genes(hvg_adata, flavor=args.flavor, n_top_genes=(args.n_top_genes if (args.n_top_genes > 0) else None), layer=step00.log_column)
 
-    if subset_mask is not None:
-        for column in hvg_adata.var.columns:
-            input_adata.var[column] = hvg_adata.var[column].to_numpy()
-        input_adata.uns["hvg"] = dict(hvg_adata.uns.get("hvg", dict()), subset_column=args.subset_column, subset_cells=int(subset_mask.sum()))
-        del hvg_adata
-        rapids_singlecell.get.anndata_to_GPU(input_adata)
-    print("Highly variable genes:", int(input_adata.var["highly_variable"].sum()), "/", input_adata.n_vars)
-    print(input_adata)
+    with notebook.cell("Use mask"):
+        if subset_mask is not None:
+            for column in hvg_adata.var.columns:
+                input_adata.var[column] = hvg_adata.var[column].to_numpy()
+            input_adata.uns["hvg"] = dict(hvg_adata.uns.get("hvg", dict()), subset_column=args.subset_column, subset_cells=int(subset_mask.sum()))
+            del hvg_adata
+            rapids_singlecell.get.anndata_to_GPU(input_adata)
+        print("Highly variable genes:", int(input_adata.var["highly_variable"].sum()), "/", input_adata.n_vars)
+        print(input_adata)
 
-    rapids_singlecell.pp.scrublet(input_adata, batch_key=step00.sample_column)
-    if "predicted_doublet" in tqdm.tqdm(list(input_adata.obs.columns)):
-        input_adata.obs["predicted_doublet"] = (input_adata.obs["predicted_doublet"].astype("object").apply(lambda x: "" if (x is None) or (isinstance(x, float) and pandas.isna(x)) else str(x)))
-    print(input_adata)
-    input_adata.write_h5ad(args.output, **step00.anndata_compressions)
+    with notebook.cell("Doublet"):
+        rapids_singlecell.pp.scrublet(input_adata, batch_key=step00.sample_column)
+        if "predicted_doublet" in tqdm.tqdm(list(input_adata.obs.columns)):
+            input_adata.obs["predicted_doublet"] = (input_adata.obs["predicted_doublet"].astype("object").apply(lambda x: "" if (x is None) or (isinstance(x, float) and pandas.isna(x)) else str(x)))
+        print(input_adata)
+        input_adata.write_h5ad(args.output, **step00.anndata_compressions)
+
+    notebook.write_pdf(args.output)
