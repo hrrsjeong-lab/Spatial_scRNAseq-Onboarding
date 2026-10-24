@@ -23,7 +23,7 @@ float_minimum = sys.float_info.min
 arrowprops = {"arrowstyle": "-", "color": "silver", "linewidth": 0.5}
 path_effects = [matplotlib.patheffects.withStroke(linewidth=5, foreground="white")]
 
-anndata_compressions = {"compression": "gzip", "compression_opts": 9}
+anndata_compressions = {"compression": "gzip", "compression_opts": 5}
 
 sample_column = "Sample"
 gene_column = "Gene"
