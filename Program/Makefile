@@ -26,23 +26,10 @@ PROJECTIONS = 01_umap 02_tsne 03_phate 04_trimap
 CLUSTERINGS = 01_Leiden 02_Louvain
 CELLTYPES = 07_CRC 08_Crohn 09_McGregor2025_Fibroblasts 10_McGregor2025_Xenium480
 
-QC_OPTIONS =
-QC_MIN_COUNTS = 0
-SKETCH_OPTIONS = --sketch-column has_pca
-
-SEURAT_NPCS = 50
-SEURAT_DIMS = 2:30
-	SEURAT_K = 20
-	SEURAT_PRUNE = 0.0666666667
-	SEURAT_RESOLUTION = 0.7
-	TRANSFER_DIMS = 2:30
-	TRANSFER_K = 50
-	UMAP_FIT = full
-	UMAP_BACKEND = rapids
-	UMAP_DIMS = 2:30
-	UMAP_NEIGHBORS = 30
-	UMAP_MIN_DIST = 0.01
-	UMAP_METRIC = cosine
+SEURAT_K = 20
+SEURAT_PRUNE = 0.0666666667
+SEURAT_RESOLUTION = 0.7
+TRANSFER_K = 50
 
 MCGREGOR_XENIUM_ASSAY =
 MCGREGOR_XENIUM_LABEL = CellAnnotation.Level0.Factor
@@ -98,6 +85,7 @@ Output/00_Authors/McGregor2025_scRNA_all.hdf5: Python/import_seurat_full.py Outp
 
 step00: Output/00_Authors/Crohn.parameters.txt Output/00_Authors/McGregor2025_Fibroblasts.h5ad Output/00_Authors/McGregor2025_scRNA_all.hdf5
 .PHONY: step00
+
 # Step 01 (Merge input)
 Output/01_Merging:
 	mkdir -p $@
@@ -142,7 +130,7 @@ Output/03_QC_filtering/Figures:
 	mkdir -p $@
 
 Output/03_QC_filtering/%.hdf5: Python/qc_filtering.py Output/01_Merging/%.hdf5 Output/02_QC_expressed_genes/%.cell.tsv.gz Output/02_QC_expressed_genes/%.gene.tsv.gz | Output/03_QC_filtering
-	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) --min-counts $(QC_MIN_COUNTS) --reference-column "CellAnnotation.Level3" $(QC_OPTIONS) $(LOGGING)
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) --min-counts 0 --reference-column "CellAnnotation.Level3" $(LOGGING)
 
 Output/03_QC_filtering/Figures/%.zip: Python/compare_genes.py Output/01_Merging/%.hdf5 Output/00_Authors/McGregor2025_scRNA_all.hdf5 | Output/03_QC_filtering/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
@@ -166,13 +154,16 @@ Output/04_Highly_variable_genes/%.02_Cell_ranger.hdf5: Python/highly_variable_ge
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --flavor "cell_ranger" $(LOGGING)
 
 Output/04_Highly_variable_genes/McGregor2025_scRNA_all.01_Seurat.hdf5: Python/highly_variable_genes.py Output/00_Authors/McGregor2025_scRNA_all.hdf5 | Output/04_Highly_variable_genes
-	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --flavor "seurat_v3_paper" --n-top-genes 2000 --subset-column has_pca $(LOGGING_TEE)
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --flavor "seurat_v3_paper" --n-top-genes 2000 --subset-column has_pca $(LOGGING)
 
 Output/04_Highly_variable_genes/Figures/%.zip: Python/draw_variable_genes.py Output/04_Highly_variable_genes/%.hdf5 | Output/04_Highly_variable_genes/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-step04-test: Output/04_Highly_variable_genes/Test.01_Seurat.hdf5 Output/04_Highly_variable_genes/Figures/Test.01_Seurat.zip Output/04_Highly_variable_genes/McGregor2025_scRNA_all.01_Seurat.hdf5
-step04-optimal: Output/04_Highly_variable_genes/$(OPTIMAL).01_Seurat.hdf5 Output/04_Highly_variable_genes/Figures/$(OPTIMAL).01_Seurat.zip Output/04_Highly_variable_genes/McGregor2025_scRNA_all.01_Seurat.hdf5
+Output/04_Highly_variable_genes/Figures/%.Compare.zip: Python/compare_variable_genes.py Output/04_Highly_variable_genes/%.hdf5 Output/04_Highly_variable_genes/McGregor2025_scRNA_all.01_Seurat.hdf5 | Output/04_Highly_variable_genes/Figures
+	$(SLURM) $(PYTHON) $(abspath $^ $@)
+
+step04-test: Output/04_Highly_variable_genes/Test.01_Seurat.hdf5 Output/04_Highly_variable_genes/Figures/Test.01_Seurat.zip Output/04_Highly_variable_genes/McGregor2025_scRNA_all.01_Seurat.hdf5 Output/04_Highly_variable_genes/Figures/McGregor2025_scRNA_all.01_Seurat.zip Output/04_Highly_variable_genes/Figures/Test.01_Seurat.Compare.zip
+step04-optimal: Output/04_Highly_variable_genes/$(OPTIMAL).01_Seurat.hdf5 Output/04_Highly_variable_genes/Figures/$(OPTIMAL).01_Seurat.zip Output/04_Highly_variable_genes/McGregor2025_scRNA_all.01_Seurat.hdf5 Output/04_Highly_variable_genes/Figures/McGregor2025_scRNA_all.01_Seurat.zip
 step04: $(addprefix Output/04_Highly_variable_genes/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(DEGS)))) $(addprefix Output/04_Highly_variable_genes/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(DEGS))))
 .PHONY: step04-test step04-optimal step04
 
@@ -184,13 +175,13 @@ Output/05_PCA/Figures:
 	mkdir -p $@
 
 Output/05_PCA/%.hdf5: Python/calculate_pca.py Output/04_Highly_variable_genes/%.hdf5 | Output/05_PCA
-	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --pcs $(SEURAT_NPCS) $(SKETCH_OPTIONS) $(LOGGING)
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --pcs 50 --sketch-column 'has_pca' $(LOGGING)
 
 Output/05_PCA/Figures/%.zip: Python/draw_pca.py Output/05_PCA/%.hdf5 | Output/05_PCA/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-step05-test: Output/05_PCA/Test.01_Seurat.hdf5 Output/05_PCA/Figures/Test.01_Seurat.zip
-step05-optimal: Output/05_PCA/$(OPTIMAL).01_Seurat.hdf5 Output/05_PCA/Figures/$(OPTIMAL).01_Seurat.zip
+step05-test: Output/05_PCA/Test.01_Seurat.hdf5 Output/05_PCA/Figures/Test.01_Seurat.zip Output/05_PCA/McGregor2025_scRNA_all.01_Seurat.hdf5 Output/05_PCA/Figures/McGregor2025_scRNA_all.01_Seurat.zip
+step05-optimal: Output/05_PCA/$(OPTIMAL).01_Seurat.hdf5 Output/05_PCA/Figures/$(OPTIMAL).01_Seurat.zip Output/05_PCA/McGregor2025_scRNA_all.01_Seurat.hdf5 Output/05_PCA/Figures/McGregor2025_scRNA_all.01_Seurat.zip
 step05: $(addprefix Output/05_PCA/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(DEGS)))) $(addprefix Output/05_PCA/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(DEGS))))
 .PHONY: step05-test step05-optimal step05
 
@@ -198,20 +189,38 @@ step05: $(addprefix Output/05_PCA/,$(addsuffix .hdf5,$(call product,$(CANCERS),$
 Output/06_Dimensional_reduction:
 	mkdir -p $@
 
+Output/06_Dimensional_reduction/Figures:
+	mkdir -p $@
+
 Output/06_Dimensional_reduction/%.01_umap.hdf5: Python/calculate_umap.py Output/05_PCA/%.hdf5 | Output/06_Dimensional_reduction
-	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) --fit $(UMAP_FIT) --backend $(UMAP_BACKEND) --dims $(UMAP_DIMS) --n-neighbors $(UMAP_NEIGHBORS) --min-dist $(UMAP_MIN_DIST) --metric $(UMAP_METRIC) $(LOGGING)
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) $(LOGGING)
+
+Output/06_Dimensional_reduction/%.01_umap.Compare.hdf5: Python/calculate_umap.py Output/05_PCA/%.hdf5 Output/05_PCA/McGregor2025_scRNA_all.01_Seurat.hdf5 | Output/06_Dimensional_reduction
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --scrna $(abspath $(word 3,$^)) --cpus $(CPUS) $(LOGGING)
 
 Output/06_Dimensional_reduction/%.02_tsne.hdf5: Python/calculate_tsne.py Output/05_PCA/%.hdf5 | Output/06_Dimensional_reduction
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) $(LOGGING)
 
+Output/06_Dimensional_reduction/%.02_tsne.Compare.hdf5: Python/calculate_tsne.py Output/05_PCA/%.hdf5 Output/05_PCA/McGregor2025_scRNA_all.01_Seurat.hdf5 | Output/06_Dimensional_reduction
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --scrna $(abspath $(word 3,$^)) --cpus $(CPUS) $(LOGGING)
+
 Output/06_Dimensional_reduction/%.03_phate.hdf5: Python/calculate_phate.py Output/05_PCA/%.hdf5 | Output/06_Dimensional_reduction
 	$(SLURM) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) $(LOGGING)
+
+Output/06_Dimensional_reduction/%.03_phate.Compare.hdf5: Python/calculate_phate.py Output/05_PCA/%.hdf5 Output/05_PCA/McGregor2025_scRNA_all.01_Seurat.hdf5 | Output/06_Dimensional_reduction
+	$(SLURM)  $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --scrna $(abspath $(word 3,$^)) --cpus $(CPUS) $(LOGGING)
 
 Output/06_Dimensional_reduction/%.04_trimap.hdf5: Python/calculate_trimap.py Output/05_PCA/%.hdf5 | Output/06_Dimensional_reduction
 	$(SLURM) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) $(LOGGING)
 
-step06-test: Output/06_Dimensional_reduction/Test.01_Seurat.01_umap.hdf5
-step06-optimal: Output/06_Dimensional_reduction/$(OPTIMAL).01_Seurat.01_umap.hdf5
+Output/06_Dimensional_reduction/%.04_trimap.Compare.hdf5: Python/calculate_trimap.py Output/05_PCA/%.hdf5 Output/05_PCA/McGregor2025_scRNA_all.01_Seurat.hdf5 | Output/06_Dimensional_reduction
+	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --scrna $(abspath $(word 3,$^)) --cpus $(CPUS) $(LOGGING)
+
+Output/06_Dimensional_reduction/Figures/%.zip: Python/compare_projection_omics.py Output/06_Dimensional_reduction/%.Compare.hdf5 | Output/06_Dimensional_reduction/Figures
+	$(SLURM) $(PYTHON) $(abspath $^ $@)
+
+step06-test: Output/06_Dimensional_reduction/Test.01_Seurat.01_umap.hdf5 Output/06_Dimensional_reduction/Test.01_Seurat.01_umap.Compare.hdf5 Output/06_Dimensional_reduction/Figures/Test.01_Seurat.01_umap.zip
+step06-optimal: Output/06_Dimensional_reduction/$(OPTIMAL).01_Seurat.01_umap.hdf5 Output/06_Dimensional_reduction/$(OPTIMAL).01_Seurat.01_umap.Compare.hdf5 Output/06_Dimensional_reduction/Figures/$(OPTIMAL).01_Seurat.01_umap.zip
 step06: $(addprefix Output/06_Dimensional_reduction/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(call product,$(DEGS),$(PROJECTIONS)))))
 .PHONY: step06-test step06-optimal step06
 
@@ -228,7 +237,7 @@ Output/07_Clustering/%.01_Leiden.hdf5: Python/calculate_leiden.py Output/06_Dime
 Output/07_Clustering/%.02_Louvain.hdf5: Python/calculate_louvain.py Output/06_Dimensional_reduction/%.hdf5 | Output/07_Clustering
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --dims $(SEURAT_DIMS) --neighbors $(SEURAT_K) --prune $(SEURAT_PRUNE) $(if $(SEURAT_RESOLUTION),--resolution $(SEURAT_RESOLUTION),) --transfer-dims $(TRANSFER_DIMS) --transfer-neighbors $(TRANSFER_K) $(LOGGING)
 
-Output/07_Clustering/Figures/%.zip: Python/draw_clustering.py Output/07_Clustering/%.hdf5 | Output/07_Clustering/Figures
+Output/07_Clustering/Figures/%.zip: python/draw_clustering.py Output/07_Clustering/%.hdf5 | Output/07_Clustering/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 step07-test: Output/07_Clustering/Test.01_Seurat.01_umap.02_Louvain.hdf5 Output/07_Clustering/Figures/Test.01_Seurat.01_umap.02_Louvain.zip
