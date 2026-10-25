@@ -390,11 +390,17 @@ class _Writer:
         if not os.path.exists(path):
             self.paragraph(f"(image not found: {path})", 8, color=MUTED_COLOR)
             return
-        with PIL.Image.open(path) as opened:
-            dpi = opened.info.get("dpi", (0, 0))[0]
-            pixel_width, pixel_height = opened.size
-            image = opened.convert("RGB")
-        image.thumbnail((max_pixels, max_pixels))
+
+        limit = PIL.Image.MAX_IMAGE_PIXELS
+        PIL.Image.MAX_IMAGE_PIXELS = None  # PNGs written by this script, not untrusted input; tall FacetGrids exceed the decompression-bomb limit
+        try:
+            with PIL.Image.open(path) as opened:
+                dpi = opened.info.get("dpi", (0, 0))[0]
+                pixel_width, pixel_height = opened.size
+                opened.thumbnail((max_pixels, max_pixels))  # shrink before the RGB copy to keep memory low
+                image = opened.convert("RGB")
+        finally:
+            PIL.Image.MAX_IMAGE_PIXELS = limit
         array = numpy.asarray(image)
 
         page_width = self.right - self.left
