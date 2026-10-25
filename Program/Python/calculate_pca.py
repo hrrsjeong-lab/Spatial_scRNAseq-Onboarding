@@ -7,6 +7,7 @@ import scipy.sparse
 import scipy.sparse.csgraph
 import scipy.sparse.linalg
 import rapids_singlecell
+import notebook_pdf
 import tqdm
 import step00
 
@@ -53,114 +54,131 @@ if __name__ == "__main__":
     step00.check_suffix(args.input, {".hdf5", ".h5"})
     step00.check_suffix(args.output, {".hdf5", ".h5"})
 
-    input_adata = scanpy.read_h5ad(args.input)
-    print(input_adata)
+    notebook = notebook_pdf.Notebook(title="Joint PCA", script=__file__)
 
-    feature_mask = input_adata.var["highly_variable"].to_numpy()
-    data = scipy.sparse.csr_matrix(input_adata.layers[step00.log_column])[:, feature_mask].astype(numpy.float64)
-    sample_array = input_adata.obs[step00.sample_column].astype(str).to_numpy()
-    sample_list = sorted(set(sample_array))
-    print("Features:", data.shape[1], "Samples:", len(sample_list))
+    with notebook.cell("Read data"):
+        input_adata = scanpy.read_h5ad(args.input)
+        print(input_adata)
 
-    if args.sketch_column is not None:
-        sketch_mask = input_adata.obs[args.sketch_column].astype(bool).to_numpy()
-    else:
-        rng = numpy.random.default_rng(42)
-        sketch_mask = numpy.zeros(input_adata.n_obs, dtype=bool)
+    with notebook.cell("HVGs"):
+        feature_mask = input_adata.var["highly_variable"].to_numpy()
+        data = scipy.sparse.csr_matrix(input_adata.layers[step00.log_column])[:, feature_mask].astype(numpy.float64)
+        sample_array = input_adata.obs[step00.sample_column].astype(str).to_numpy()
+        sample_list = sorted(set(sample_array))
+        print("Features:", data.shape[1], "Samples:", len(sample_list))
 
+    with notebook.cell("Sketch"):
+        if args.sketch_column is not None:
+            sketch_mask = input_adata.obs[args.sketch_column].astype(bool).to_numpy()
+        else:
+            rng = numpy.random.default_rng(42)
+            sketch_mask = numpy.zeros(input_adata.n_obs, dtype=bool)
+
+            for sample in tqdm.tqdm(sample_list):
+                index = numpy.flatnonzero(sample_array == sample)
+
+                if index.size <= args.sketch_cells:
+                    sketch_mask[index] = True
+                    continue
+
+                if args.sketch_method == "Uniform":
+                    sketch_mask[rng.choice(index, size=args.sketch_cells, replace=False)] = True
+                    continue
+
+                score = leverage_score(data[index], input_adata.n_obs, rng, n_sketch=args.sketch_cells)
+                sketch_mask[rng.choice(index, size=args.sketch_cells, replace=False, p=score / score.sum())] = True
+
+    with notebook.cell("Preprocessing"):
+        input_adata.obs[step00.sketch_column] = sketch_mask
+        print(pandas.crosstab(input_adata.obs[step00.sample_column], input_adata.obs[step00.sketch_column]))
+
+        total_counts = numpy.asarray(input_adata.X.sum(axis=1)).ravel()
+        print(pandas.DataFrame({"Sketch": pandas.Series(total_counts[sketch_mask]).describe(), "Rest": pandas.Series(total_counts[~(sketch_mask)]).describe()}))
+
+        sketch_data = data[sketch_mask].toarray()
+        mean = sketch_data.mean(axis=0)
+        std = sketch_data.std(axis=0, ddof=1)
+        std[(std == 0)] = 1.0
+        scaled_data = numpy.minimum((sketch_data - mean) / std, 10.0).astype(numpy.float64)
+        del sketch_data
+        sketch_adata = anndata.AnnData(X=scaled_data, obs=input_adata.obs.loc[sketch_mask, [step00.sample_column]].copy())
+
+    with notebook.cell("PCA"):
+        rapids_singlecell.get.anndata_to_GPU(sketch_adata)
+        rapids_singlecell.pp.pca(sketch_adata, n_comps=args.pcs, mask_var=None, random_state=42)
+
+        null_data = scaled_data.astype(numpy.float64)
+        del scaled_data
+        numpy.random.default_rng(42).permuted(null_data, axis=0, out=null_data)
+        null_adata = anndata.AnnData(X=null_data)
+        rapids_singlecell.get.anndata_to_GPU(null_adata)
+        rapids_singlecell.pp.pca(null_adata, n_comps=args.pcs, mask_var=None, random_state=42)
+
+    with notebook.cell("Variance"):
+        variance = to_numpy(sketch_adata.uns["pca"]["variance"])
+        variance_ratio = to_numpy(sketch_adata.uns["pca"]["variance_ratio"])
+        null_variance_ratio = to_numpy(null_adata.uns["pca"]["variance_ratio"])
+        del null_adata
+
+    with notebook.cell("PCs"):
+        above_null = variance_ratio > null_variance_ratio
+        signal_pcs = int(above_null.size if above_null.all() else numpy.argmin(above_null))
+        variance_data = pandas.DataFrame({"Eigenvalue": variance, "Ratio": variance_ratio, "Cumulative": numpy.cumsum(variance_ratio), "Null ratio": null_variance_ratio, "Fold over null": variance_ratio / null_variance_ratio}, index=[f"PC{i + 1}" for i in range(variance.size)])
+        print("Features:", data.shape[1], "Total variance:", variance[0] / variance_ratio[0], "PCs above permutation null:", signal_pcs)
+        print(variance_data.to_string(float_format=lambda x: f"{x:.4f}"))
+
+    with notebook.cell("Harmony"):
+        rapids_singlecell.pp.harmony_integrate(sketch_adata, key=step00.sample_column, basis=step00.pca_key, adjusted_basis=step00.harmony_key, correction_method="batched", random_state=42)
+        loadings = to_numpy(sketch_adata.varm["PCs"])
+        sketch_harmony = to_numpy(sketch_adata.obsm[step00.harmony_key])
+        print(sketch_adata)
+
+    with notebook.cell(""):
+        feature_sketch = count_sketch(int(round(0.8 * data.shape[1])), data.shape[1], numpy.random.default_rng(42)).T.tocsr()
+        sketch_position = numpy.full(input_adata.n_obs, -1)
+        sketch_position[sketch_mask] = numpy.arange(sketch_mask.sum())
+        pca_embedding = numpy.zeros((input_adata.n_obs, args.pcs), dtype=numpy.float64)
+        harmony_embedding = numpy.zeros((input_adata.n_obs, args.pcs), dtype=numpy.float64)
+
+    with notebook.cell(""):
         for sample in tqdm.tqdm(sample_list):
             index = numpy.flatnonzero(sample_array == sample)
+            atom = index[sketch_mask[index]]
 
-            if index.size <= args.sketch_cells:
-                sketch_mask[index] = True
-                continue
+            assert (atom.size > 0), f"No sketch cells in {sample}!!"
 
-            if args.sketch_method == "Uniform":
-                sketch_mask[rng.choice(index, size=args.sketch_cells, replace=False)] = True
-                continue
+            pca_embedding[index] = numpy.minimum((data[index].toarray() - mean) / std, 10.0) @ loadings
+            transform = numpy.linalg.pinv((data[atom] @ feature_sketch).toarray()) @ sketch_harmony[sketch_position[atom]]
+            harmony_embedding[index] = (data[index] @ feature_sketch) @ transform
 
-            score = leverage_score(data[index], input_adata.n_obs, rng, n_sketch=args.sketch_cells)
-            sketch_mask[rng.choice(index, size=args.sketch_cells, replace=False, p=score / score.sum())] = True
+        if step00.pca_key in input_adata.obsm:
+            input_adata.obsm[f"{step00.pca_key}_authors"] = input_adata.obsm[step00.pca_key]
 
-    input_adata.obs[step00.sketch_column] = sketch_mask
-    print(pandas.crosstab(input_adata.obs[step00.sample_column], input_adata.obs[step00.sketch_column]))
+    with notebook.cell(""):
+        input_adata.obsm[step00.pca_key] = pca_embedding
+        input_adata.obsm[step00.harmony_key] = harmony_embedding
+        input_adata.obsm[step00.sketch_key] = numpy.where(sketch_mask[:, None], sketch_harmony[numpy.maximum(sketch_position, 0)], numpy.nan).astype(numpy.float64)
+        input_adata.uns[step00.pca_key] = {"variance": variance, "variance_ratio": variance_ratio, "null_variance_ratio": null_variance_ratio, "signal_pcs": signal_pcs, "n_features": int(data.shape[1]), "sketch_cells": args.sketch_cells, "sketch_method": (args.sketch_method if (args.sketch_column is None) else args.sketch_column)}
+        print(input_adata)
 
-    total_counts = numpy.asarray(input_adata.X.sum(axis=1)).ravel()
-    print(pandas.DataFrame({"Sketch": pandas.Series(total_counts[sketch_mask]).describe(), "Rest": pandas.Series(total_counts[~(sketch_mask)]).describe()}))
-
-    sketch_data = data[sketch_mask].toarray()
-    mean = sketch_data.mean(axis=0)
-    std = sketch_data.std(axis=0, ddof=1)
-    std[(std == 0)] = 1.0
-    scaled_data = numpy.minimum((sketch_data - mean) / std, 10.0).astype(numpy.float64)
-    del sketch_data
-    sketch_adata = anndata.AnnData(X=scaled_data, obs=input_adata.obs.loc[sketch_mask, [step00.sample_column]].copy())
-
-    rapids_singlecell.get.anndata_to_GPU(sketch_adata)
-    rapids_singlecell.pp.pca(sketch_adata, n_comps=args.pcs, mask_var=None, random_state=42)
-
-    null_data = scaled_data.astype(numpy.float32)
-    del scaled_data
-    numpy.random.default_rng(42).permuted(null_data, axis=0, out=null_data)
-    null_adata = anndata.AnnData(X=null_data)
-    rapids_singlecell.get.anndata_to_GPU(null_adata)
-    rapids_singlecell.pp.pca(null_adata, n_comps=args.pcs, mask_var=None, random_state=42)
-
-    variance = to_numpy(sketch_adata.uns["pca"]["variance"])
-    variance_ratio = to_numpy(sketch_adata.uns["pca"]["variance_ratio"])
-    null_variance_ratio = to_numpy(null_adata.uns["pca"]["variance_ratio"])
-    del null_adata
-
-    above_null = variance_ratio > null_variance_ratio
-    signal_pcs = int(above_null.size if above_null.all() else numpy.argmin(above_null))
-    variance_data = pandas.DataFrame({"Eigenvalue": variance, "Ratio": variance_ratio, "Cumulative": numpy.cumsum(variance_ratio), "Null ratio": null_variance_ratio, "Fold over null": variance_ratio / null_variance_ratio}, index=[f"PC{i + 1}" for i in range(variance.size)])
-    print("Features:", data.shape[1], "Total variance:", variance[0] / variance_ratio[0], "PCs above permutation null:", signal_pcs)
-    print(variance_data.to_string(float_format=lambda x: f"{x:.4f}"))
-
-    rapids_singlecell.pp.harmony_integrate(sketch_adata, key=step00.sample_column, basis=step00.pca_key, adjusted_basis=step00.harmony_key, correction_method="batched", random_state=42)
-    loadings = to_numpy(sketch_adata.varm["PCs"])
-    sketch_harmony = to_numpy(sketch_adata.obsm[step00.harmony_key])
-    print(sketch_adata)
-
-    feature_sketch = count_sketch(int(round(0.8 * data.shape[1])), data.shape[1], numpy.random.default_rng(42)).T.tocsr()
-    sketch_position = numpy.full(input_adata.n_obs, -1)
-    sketch_position[sketch_mask] = numpy.arange(sketch_mask.sum())
-    pca_embedding = numpy.zeros((input_adata.n_obs, args.pcs), dtype=numpy.float64)
-    harmony_embedding = numpy.zeros((input_adata.n_obs, args.pcs), dtype=numpy.float64)
-
-    for sample in tqdm.tqdm(sample_list):
-        index = numpy.flatnonzero(sample_array == sample)
-        atom = index[sketch_mask[index]]
-
-        assert (atom.size > 0), f"No sketch cells in {sample}!!"
-
-        pca_embedding[index] = numpy.minimum((data[index].toarray() - mean) / std, 10.0) @ loadings
-        transform = numpy.linalg.pinv((data[atom] @ feature_sketch).toarray()) @ sketch_harmony[sketch_position[atom]]
-        harmony_embedding[index] = (data[index] @ feature_sketch) @ transform
-
-    if step00.pca_key in input_adata.obsm:
-        input_adata.obsm[f"{step00.pca_key}_authors"] = input_adata.obsm[step00.pca_key]
-
-    input_adata.obsm[step00.pca_key] = pca_embedding
-    input_adata.obsm[step00.harmony_key] = harmony_embedding
-    input_adata.obsm[step00.sketch_key] = numpy.where(sketch_mask[:, None], sketch_harmony[numpy.maximum(sketch_position, 0)], numpy.nan).astype(numpy.float64)
-    input_adata.uns[step00.pca_key] = {"variance": variance, "variance_ratio": variance_ratio, "null_variance_ratio": null_variance_ratio, "signal_pcs": signal_pcs, "n_features": int(data.shape[1]), "sketch_cells": args.sketch_cells, "sketch_method": (args.sketch_method if (args.sketch_column is None) else args.sketch_column)}
-    print(input_adata)
-
-    rapids_singlecell.pp.neighbors(input_adata, n_neighbors=args.neighbors, use_rep=step00.harmony_key, algorithm="cagra", random_state=42)
-
-    connectivities = input_adata.obsp["connectivities"].copy()
-    connectivities.eliminate_zeros()
-    n_components, components = scipy.sparse.csgraph.connected_components(connectivities, directed=False)
-    component_size = numpy.bincount(components)[components]
-    input_adata.obs["kNN_component_size"] = component_size
-    print("kNN components:", n_components, "Largest:", numpy.sort(numpy.bincount(components))[::-1][:5])
-    print("Cells in components < 100:", (component_size < 100).sum())
-
-    if args.min_component > 0:
-        input_adata = input_adata[component_size >= args.min_component].copy()
+    with notebook.cell(""):
         rapids_singlecell.pp.neighbors(input_adata, n_neighbors=args.neighbors, use_rep=step00.harmony_key, algorithm="cagra", random_state=42)
-        print("Removed cells:", (component_size < args.min_component).sum())
 
-    print(input_adata)
-    input_adata.write_h5ad(args.output, **step00.anndata_compressions)
+        connectivities = input_adata.obsp["connectivities"].copy()
+        connectivities.eliminate_zeros()
+        n_components, components = scipy.sparse.csgraph.connected_components(connectivities, directed=False)
+        component_size = numpy.bincount(components)[components]
+        input_adata.obs["kNN_component_size"] = component_size
+        print("kNN components:", n_components, "Largest:", numpy.sort(numpy.bincount(components))[::-1][:5])
+        print("Cells in components < 100:", (component_size < 100).sum())
+
+        if args.min_component > 0:
+            input_adata = input_adata[component_size >= args.min_component].copy()
+            rapids_singlecell.pp.neighbors(input_adata, n_neighbors=args.neighbors, use_rep=step00.harmony_key, algorithm="cagra", random_state=42)
+            print("Removed cells:", (component_size < args.min_component).sum())
+
+    with notebook.cell(""):
+        print(input_adata)
+        input_adata.write_h5ad(args.output, **step00.anndata_compressions)
+
+    notebook.write_pdf(args.output)
