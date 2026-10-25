@@ -24,7 +24,7 @@ def nearest_neighbors(reference: numpy.ndarray, query: numpy.ndarray, k: int):
     return to_numpy(distances), to_numpy(indices)
 
 
-def seurat_snn(embedding: numpy.ndarray, k: int, prune: float) -> scipy.sparse.csr_matrix:
+def seurat_snn(embedding: numpy.ndarray, k: int, prune: float = 1 / 15) -> scipy.sparse.csr_matrix:
     n_cells = embedding.shape[0]
     _, indices = nearest_neighbors(embedding, embedding, k)
     knn = scipy.sparse.csr_matrix((numpy.ones(n_cells * k), indices.ravel().astype(numpy.int64), numpy.arange(0, n_cells * k + 1, k)), shape=(n_cells, n_cells))
@@ -41,12 +41,8 @@ if __name__ == "__main__":
 
     parser.add_argument("input", help="Input HDF5 file", type=str)
     parser.add_argument("output", help="Output HDF5 file", type=str)
-    parser.add_argument("--dims", help="Harmony dimensions as start:end (Seurat FindNeighbors dims)", type=str, default="1:30")
-    parser.add_argument("--neighbors", help="Number of neighbors for the sketch SNN graph (Seurat k.param)", type=int, default=20)
-    parser.add_argument("--prune", help="Jaccard cutoff for SNN edges (Seurat prune.SNN)", type=float, default=1 / 15)
-    parser.add_argument("--resolution", help="Fixed resolution (Seurat FindClusters resolution); search with --max-clusters if omitted", type=float, default=None)
+    parser.add_argument("--neighbors", help="Number of neighbors for the sketch SNN graph (Seurat k.param)", type=int, default=30)
     parser.add_argument("--transfer-neighbors", help="Number of sketch neighbors for label transfer (Seurat TransferSketchLabels k)", type=int, default=50)
-    parser.add_argument("--transfer-dims", help="Full Harmony dimensions as start:end for label transfer (Seurat TransferSketchLabels dims); same as --dims if omitted", type=str, default=None)
     parser.add_argument("--max-clusters", help="Maximum number of clusters", type=int, default=30)
 
     args = parser.parse_args()
@@ -54,24 +50,21 @@ if __name__ == "__main__":
     step00.check_suffix(args.input, {".hdf5", ".h5"})
     step00.check_suffix(args.output, {".hdf5", ".h5"})
 
-    dims = step00.parse_dims(args.dims)
-    transfer_dims = step00.parse_dims(args.dims if (args.transfer_dims is None) else args.transfer_dims)
-
     input_adata = scanpy.read_h5ad(args.input)
     print(input_adata)
 
     sketch_mask = input_adata.obs[step00.sketch_column].to_numpy(dtype=bool)
-    sketch_adata = anndata.AnnData(obs=input_adata.obs.loc[sketch_mask, [step00.sample_column]].copy(), obsm={step00.harmony_key: numpy.asarray(input_adata.obsm[step00.sketch_key])[sketch_mask, dims]})
-    snn = seurat_snn(sketch_adata.obsm[step00.harmony_key], args.neighbors, args.prune)
+    sketch_adata = anndata.AnnData(obs=input_adata.obs.loc[sketch_mask, [step00.sample_column]].copy(), obsm={step00.harmony_key: numpy.asarray(input_adata.obsm[step00.sketch_key])[sketch_mask, 0:30]})
+    snn = seurat_snn(sketch_adata.obsm[step00.harmony_key], args.neighbors)
     print("SNN graph:", snn.shape, "edges per cell:", snn.nnz / snn.shape[0], "min weight:", snn.data.min())
 
-    resolutions = [1.0, 0.8, 0.7, 0.5, 0.4, 0.3, 0.25, 0.2, 0.15, 0.1, 0.075, 0.05, 0.025, 0.01] if (args.resolution is None) else [args.resolution]
-    resolution_columns = {r: (f"{step00.clustering_column}_{r}" if (len(resolutions) > 1) else step00.clustering_column) for r in resolutions}
+    resolutions = [1.0, 0.8, 0.7, 0.5, 0.4, 0.3, 0.25, 0.2, 0.15, 0.1, 0.075, 0.05, 0.025, 0.01]
+    resolution_columns = {r: f"{step00.clustering_column}_{r}" for r in resolutions}
     rapids_singlecell.tl.louvain(sketch_adata, resolution=resolutions, key_added=step00.clustering_column, adjacency=snn)
     summary_data = pandas.DataFrame([{"Resolution": r, "Clusters": sketch_adata.obs[resolution_columns[r]].nunique()} for r in resolutions])
     print(summary_data)
 
-    candidate_data = summary_data if (args.resolution is not None) else summary_data.loc[(summary_data["Clusters"] <= args.max_clusters)]
+    candidate_data = summary_data.loc[(summary_data["Clusters"] <= args.max_clusters)]
     assert (not candidate_data.empty), f"No resolution gives at most {args.max_clusters} clusters!!"
 
     selected = float(candidate_data["Resolution"].max())
@@ -81,7 +74,7 @@ if __name__ == "__main__":
     label_list = numpy.asarray(sorted(set(sketch_labels)))
     codes = numpy.searchsorted(label_list, sketch_labels)
 
-    harmony_full = numpy.asarray(input_adata.obsm[step00.harmony_key])[:, transfer_dims]
+    harmony_full = numpy.asarray(input_adata.obsm[step00.harmony_key])[:, 0:30]
     distances, indices = nearest_neighbors(harmony_full[sketch_mask], harmony_full, args.transfer_neighbors)
     ratio = numpy.divide(distances, distances[:, -1:], out=numpy.zeros_like(distances), where=(distances[:, -1:] > 0))
     weights = 1.0 - numpy.exp(-(1.0 - ratio) / 4.0)
@@ -99,7 +92,7 @@ if __name__ == "__main__":
     input_adata.obs[step00.clustering_column] = pandas.Categorical(labels.map(mapping), categories=[str(i) for i in range(len(order))])
     input_adata.obs[f"{step00.clustering_column}_score"] = probability.max(axis=1)
     input_adata.obs[f"{step00.clustering_column}_sketch"] = pandas.Series(sketch_labels, index=sketch_adata.obs_names).map(mapping).reindex(input_adata.obs_names).astype("category")
-    input_adata.uns[step00.clustering_column] = {"selected_resolution": selected, "n_clusters": {str(r): int(n) for r, n in zip(summary_data["Resolution"], summary_data["Clusters"])}, "dims": args.dims, "neighbors": args.neighbors, "prune": args.prune, "transfer_dims": (args.dims if (args.transfer_dims is None) else args.transfer_dims), "transfer_neighbors": args.transfer_neighbors}
+    input_adata.uns[step00.clustering_column] = {"selected_resolution": selected, "n_clusters": {str(r): int(n) for r, n in zip(summary_data["Resolution"], summary_data["Clusters"])}, "dims": "0:30", "neighbors": args.neighbors, "prune": 1/15, "transfer_dims": "0:30", "transfer_neighbors": args.transfer_neighbors}
 
     print(input_adata.obs[step00.clustering_column].value_counts())
     print(input_adata.obs[f"{step00.clustering_column}_score"].describe())
