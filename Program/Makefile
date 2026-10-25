@@ -24,7 +24,7 @@ OPTIMAL = Crohn
 DEGS = 01_Seurat 02_Cell_ranger
 PROJECTIONS = 01_umap 02_tsne 03_phate 04_trimap
 CLUSTERINGS = 01_Leiden 02_Louvain
-CELLTYPES = 07_CRC 08_Crohn 09_McGregor2025_Fibroblasts 10_McGregor2025_Xenium480
+CELLTYPES = 07_CRC 08_Crohn 09_McGregor2025_scRNA_all 10_McGregor2025_Xenium480
 
 SEURAT_K = 20
 SEURAT_PRUNE = 0.0666666667
@@ -51,18 +51,18 @@ LOGGING_TEE = 2>&1 | tee $(abspath $@).log
 
 all: step00 test optimal step01 step02 step03 step04 step05 step06 step07 step08 step09 step10 step11 step12
 	@date | mail -s "[$(PROJECT)] Making $@ has been finished on $(shell hostname)" "jaewoong@gist.ac.kr"
-	.PHONY: all
+.PHONY: all
 
 clean:
 .PHONY: clean
 
 optimal: step01-optimal step02-optimal step03-optimal step04-optimal step05-optimal step06-optimal step07-optimal step08-optimal step09-optimal step10-optimal step11-optimal step12-optimal
 	@date | mail -s "[$(PROJECT)] Making $@ has been finished on $(shell hostname)" "jaewoong@gist.ac.kr"
-	.PHONY: optimal
+.PHONY: optimal
 
 test: step01-test step02-test step03-test step04-test step05-test step06-test step07-test step08-test step09-test step10-test step11-test step12-test
 	@date | mail -s "[$(PROJECT)] Making $@ has been finished on $(shell hostname)" "jaewoong@gist.ac.kr"
-	.PHONY: test
+.PHONY: test
 
 # Step 00 (Authors' Seurat parameters and objects)
 Output/00_Authors:
@@ -160,7 +160,7 @@ Output/04_Highly_variable_genes/Figures/%.zip: Python/draw_variable_genes.py Out
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 Output/04_Highly_variable_genes/Figures/%.Compare.zip: Python/compare_variable_genes.py Output/04_Highly_variable_genes/%.hdf5 Output/04_Highly_variable_genes/McGregor2025_scRNA_all.01_Seurat.hdf5 | Output/04_Highly_variable_genes/Figures
-	$(SLURM) $(PYTHON) $(abspath $^ $@)
+	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 step04-test: Output/04_Highly_variable_genes/Test.01_Seurat.hdf5 Output/04_Highly_variable_genes/Figures/Test.01_Seurat.zip Output/04_Highly_variable_genes/McGregor2025_scRNA_all.01_Seurat.hdf5 Output/04_Highly_variable_genes/Figures/McGregor2025_scRNA_all.01_Seurat.zip Output/04_Highly_variable_genes/Figures/Test.01_Seurat.Compare.zip
 step04-optimal: Output/04_Highly_variable_genes/$(OPTIMAL).01_Seurat.hdf5 Output/04_Highly_variable_genes/Figures/$(OPTIMAL).01_Seurat.zip Output/04_Highly_variable_genes/McGregor2025_scRNA_all.01_Seurat.hdf5 Output/04_Highly_variable_genes/Figures/McGregor2025_scRNA_all.01_Seurat.zip
@@ -177,11 +177,14 @@ Output/05_PCA/Figures:
 Output/05_PCA/%.hdf5: Python/calculate_pca.py Output/04_Highly_variable_genes/%.hdf5 | Output/05_PCA
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --pcs 50 --sketch-column 'has_pca' $(LOGGING)
 
+Output/05_PCA/%.Compare.hdf5: Python/calculate_joint_pca.py Output/04_Highly_variable_genes/%.hdf5 Output/04_Highly_variable_genes/McGregor2025_scRNA_all.01_Seurat.hdf5 | Output/05_PCA
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --pcs 50 --sketch-column 'has_pca' $(LOGGING)
+
 Output/05_PCA/Figures/%.zip: Python/draw_pca.py Output/05_PCA/%.hdf5 | Output/05_PCA/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-step05-test: Output/05_PCA/Test.01_Seurat.hdf5 Output/05_PCA/Figures/Test.01_Seurat.zip Output/05_PCA/McGregor2025_scRNA_all.01_Seurat.hdf5 Output/05_PCA/Figures/McGregor2025_scRNA_all.01_Seurat.zip
-step05-optimal: Output/05_PCA/$(OPTIMAL).01_Seurat.hdf5 Output/05_PCA/Figures/$(OPTIMAL).01_Seurat.zip Output/05_PCA/McGregor2025_scRNA_all.01_Seurat.hdf5 Output/05_PCA/Figures/McGregor2025_scRNA_all.01_Seurat.zip
+step05-test: Output/05_PCA/Test.01_Seurat.hdf5 Output/05_PCA/Figures/Test.01_Seurat.zip Output/05_PCA/Test.01_Seurat.Compare.hdf5
+step05-optimal: Output/05_PCA/$(OPTIMAL).01_Seurat.hdf5 Output/05_PCA/Figures/$(OPTIMAL).01_Seurat.zip Output/05_PCA/$(OPTIMAL).01_Seurat.Compare.hdf5
 step05: $(addprefix Output/05_PCA/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(DEGS)))) $(addprefix Output/05_PCA/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(DEGS))))
 .PHONY: step05-test step05-optimal step05
 
@@ -195,32 +198,20 @@ Output/06_Dimensional_reduction/Figures:
 Output/06_Dimensional_reduction/%.01_umap.hdf5: Python/calculate_umap.py Output/05_PCA/%.hdf5 | Output/06_Dimensional_reduction
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) $(LOGGING)
 
-Output/06_Dimensional_reduction/%.01_umap.Compare.hdf5: Python/calculate_umap.py Output/05_PCA/%.hdf5 Output/05_PCA/McGregor2025_scRNA_all.01_Seurat.hdf5 | Output/06_Dimensional_reduction
-	$(SLURM) $(GPUS) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --scrna $(abspath $(word 3,$^)) --cpus $(CPUS) $(LOGGING)
-
 Output/06_Dimensional_reduction/%.02_tsne.hdf5: Python/calculate_tsne.py Output/05_PCA/%.hdf5 | Output/06_Dimensional_reduction
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) $(LOGGING)
-
-Output/06_Dimensional_reduction/%.02_tsne.Compare.hdf5: Python/calculate_tsne.py Output/05_PCA/%.hdf5 Output/05_PCA/McGregor2025_scRNA_all.01_Seurat.hdf5 | Output/06_Dimensional_reduction
-	$(SLURM) $(GPUS) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --scrna $(abspath $(word 3,$^)) --cpus $(CPUS) $(LOGGING)
 
 Output/06_Dimensional_reduction/%.03_phate.hdf5: Python/calculate_phate.py Output/05_PCA/%.hdf5 | Output/06_Dimensional_reduction
 	$(SLURM) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) $(LOGGING)
 
-Output/06_Dimensional_reduction/%.03_phate.Compare.hdf5: Python/calculate_phate.py Output/05_PCA/%.hdf5 Output/05_PCA/McGregor2025_scRNA_all.01_Seurat.hdf5 | Output/06_Dimensional_reduction
-	$(SLURM)  $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --scrna $(abspath $(word 3,$^)) --cpus $(CPUS) $(LOGGING)
-
 Output/06_Dimensional_reduction/%.04_trimap.hdf5: Python/calculate_trimap.py Output/05_PCA/%.hdf5 | Output/06_Dimensional_reduction
 	$(SLURM) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) $(LOGGING)
 
-Output/06_Dimensional_reduction/%.04_trimap.Compare.hdf5: Python/calculate_trimap.py Output/05_PCA/%.hdf5 Output/05_PCA/McGregor2025_scRNA_all.01_Seurat.hdf5 | Output/06_Dimensional_reduction
-	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --scrna $(abspath $(word 3,$^)) --cpus $(CPUS) $(LOGGING)
+Output/06_Dimensional_reduction/Figures/%.zip: Python/compare_projection_omics.py Output/06_Dimensional_reduction/%.hdf5 | Output/06_Dimensional_reduction/Figures
+	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-Output/06_Dimensional_reduction/Figures/%.zip: Python/compare_projection_omics.py Output/06_Dimensional_reduction/%.Compare.hdf5 | Output/06_Dimensional_reduction/Figures
-	$(SLURM) $(PYTHON) $(abspath $^ $@)
-
-step06-test: Output/06_Dimensional_reduction/Test.01_Seurat.01_umap.hdf5 Output/06_Dimensional_reduction/Test.01_Seurat.01_umap.Compare.hdf5 Output/06_Dimensional_reduction/Figures/Test.01_Seurat.01_umap.zip
-step06-optimal: Output/06_Dimensional_reduction/$(OPTIMAL).01_Seurat.01_umap.hdf5 Output/06_Dimensional_reduction/$(OPTIMAL).01_Seurat.01_umap.Compare.hdf5 Output/06_Dimensional_reduction/Figures/$(OPTIMAL).01_Seurat.01_umap.zip
+step06-test: Output/06_Dimensional_reduction/Test.01_Seurat.01_umap.hdf5 Output/06_Dimensional_reduction/Test.01_Seurat.Compare.01_umap.hdf5 Output/06_Dimensional_reduction/Figures/Test.01_Seurat.Compare.01_umap.zip
+step06-optimal: Output/06_Dimensional_reduction/$(OPTIMAL).01_Seurat.01_umap.hdf5 Output/06_Dimensional_reduction/$(OPTIMAL).01_Seurat.Compare.01_umap.hdf5 Output/06_Dimensional_reduction/Figures/$(OPTIMAL).01_Seurat.Compare.01_umap.zip
 step06: $(addprefix Output/06_Dimensional_reduction/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(call product,$(DEGS),$(PROJECTIONS)))))
 .PHONY: step06-test step06-optimal step06
 
@@ -235,7 +226,7 @@ Output/07_Clustering/%.01_Leiden.hdf5: Python/calculate_leiden.py Output/06_Dime
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 Output/07_Clustering/%.02_Louvain.hdf5: Python/calculate_louvain.py Output/06_Dimensional_reduction/%.hdf5 | Output/07_Clustering
-	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --dims $(SEURAT_DIMS) --neighbors $(SEURAT_K) --prune $(SEURAT_PRUNE) $(if $(SEURAT_RESOLUTION),--resolution $(SEURAT_RESOLUTION),) --transfer-dims $(TRANSFER_DIMS) --transfer-neighbors $(TRANSFER_K) $(LOGGING)
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 Output/07_Clustering/Figures/%.zip: python/draw_clustering.py Output/07_Clustering/%.hdf5 | Output/07_Clustering/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
@@ -283,14 +274,8 @@ Output/08_Marker_genes/References/07_CRC.pkl: | Output/08_Marker_genes/Reference
 Output/08_Marker_genes/References/08_Crohn.pkl: | Output/08_Marker_genes/References
 	wget "https://celltypist.cog.sanger.ac.uk/models/Intestinal_Tract_Elmentaite/v1/Cells_Intestinal_Tract.pkl" -O $(abspath $@) $(LOGGING)
 
-Output/08_Marker_genes/References/McGregor2025_Fibroblasts/obs.csv.gz: R/export_seurat_reference.R /home/Store/PMC12804086/scRNA-seq/scrna_seq_meta_analysis_fibroblasts.RDS | Output/08_Marker_genes/References
-	$(SLURM) $(R) $(abspath $^) $(abspath $(@D)) $(LOGGING_DIR)
-
-Output/08_Marker_genes/References/McGregor2025_Fibroblasts.h5ad: Python/import_seurat_export.py Output/08_Marker_genes/References/McGregor2025_Fibroblasts/obs.csv.gz
-	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
-
-Output/08_Marker_genes/References/09_McGregor2025_Fibroblasts.pkl: Python/train_celltype_reference_3.py Output/08_Marker_genes/References/McGregor2025_Fibroblasts.h5ad Output/03_QC_filtering/Crohn.hdf5
-	$(SLURM) $(PYTHON) $(abspath $^ $@) --label "CellAnnotation.Level2" --cpus $(CPUS) $(LOGGING)
+Output/08_Marker_genes/References/09_McGregor2025_scRNA_all.pkl: Python/train_celltype_reference_3.py Output/00_Authors/McGregor2025_scRNA_all.hdf5 Output/03_QC_filtering/Crohn.hdf5 | Output/08_Marker_genes/References
+	$(SLURM) $(PYTHON) $(abspath $^ $@) --label "Celltype" --cpus $(CPUS) $(LOGGING)
 
 Output/08_Marker_genes/References/McGregor2025_Xenium480/obs.csv.gz: R/export_seurat_reference.R /home/Store/PMC12804086/Xenium/xenium_spatial_transcriptomics.RDS | Output/08_Marker_genes/References
 	$(SLURM) $(R) $(abspath $^) $(abspath $(@D)) --label=$(MCGREGOR_XENIUM_LABEL) --max-per-label=$(MCGREGOR_XENIUM_PER_LABEL) --seed=42 $(LOGGING_DIR)
@@ -328,8 +313,8 @@ Output/08_Marker_genes/%.09_McGregor2025_Fibroblasts.hdf5: Python/select_marker_
 Output/08_Marker_genes/%.10_McGregor2025_Xenium480.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/10_McGregor2025_Xenium480.pkl
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-Output/08_Marker_genes/Figures/%.zip: Python/draw_marker_genes.py Output/08_Marker_genes/%.hdf5 | Output/08_Marker_genes/Figures
-	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
+Output/08_Marker_genes/%.09_McGregor2025_scRNA_all.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/09_McGregor2025_scRNA_all.pkl
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 step08-test: Output/08_Marker_genes/References/10_McGregor2025_Xenium480.pkl Output/08_Marker_genes/Test.01_Seurat.01_umap.02_Louvain.10_McGregor2025_Xenium480.hdf5 Output/08_Marker_genes/Figures/Test.01_Seurat.01_umap.02_Louvain.10_McGregor2025_Xenium480.zip
 step08-optimal: Output/08_Marker_genes/References/10_McGregor2025_Xenium480.pkl Output/08_Marker_genes/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.10_McGregor2025_Xenium480.hdf5 Output/08_Marker_genes/Figures/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.10_McGregor2025_Xenium480.zip
@@ -382,8 +367,8 @@ Output/11_Evaluate_celltype/%.09_McGregor2025_Fibroblasts.hdf5: Python/evaluate_
 Output/11_Evaluate_celltype/%.10_McGregor2025_Xenium480.hdf5: Python/evaluate_marker_genes.py Output/08_Marker_genes/%.10_McGregor2025_Xenium480.hdf5 Output/08_Marker_genes/References/10_McGregor2025_Xenium480.pkl Output/08_Marker_genes/References/McGregor2025_Xenium480.h5ad | Output/11_Evaluate_celltype $(EVALUATE_MARKER_TABLE)
 	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --model $(abspath $(word 3,$^)) --reference $(abspath $(word 4,$^)) --true-column "$(EVALUATE_TRUE_COLUMN)" --marker-table $(abspath $(EVALUATE_MARKER_TABLE)) $(LOGGING)
 
-Output/11_Evaluate_celltype/Figures/%.zip: Python/draw_evaluate_marker_genes.py Output/11_Evaluate_celltype/%.hdf5 | Output/11_Evaluate_celltype/Figures
-	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
+Output/11_Evaluate_celltype/%.09_McGregor2025_scRNA_all.hdf5: Python/evaluate_marker_genes.py Output/08_Marker_genes/%.09_McGregor2025_scRNA_all.hdf5 Output/08_Marker_genes/References/09_McGregor2025_scRNA_all.pkl Output/00_Authors/McGregor2025_scRNA_all.hdf5 | Output/11_Evaluate_celltype $(EVALUATE_MARKER_TABLE)
+	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --model $(abspath $(word 3,$^)) --reference $(abspath $(word 4,$^)) --true-column "CellAnnotation.Level0" --marker-table $(abspath $(EVALUATE_MARKER_TABLE)) $(LOGGING)
 
 step11-test: Output/08_Marker_genes/References/McGregor2025_Xenium480_Level0_markers.tsv Output/11_Evaluate_celltype/Test.01_Seurat.01_umap.02_Louvain.10_McGregor2025_Xenium480.hdf5 Output/11_Evaluate_celltype/Figures/Test.01_Seurat.01_umap.02_Louvain.10_McGregor2025_Xenium480.zip
 step11-optimal: Output/08_Marker_genes/References/McGregor2025_Xenium480_Level0_markers.tsv Output/11_Evaluate_celltype/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.10_McGregor2025_Xenium480.hdf5 Output/11_Evaluate_celltype/Figures/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.10_McGregor2025_Xenium480.zip
