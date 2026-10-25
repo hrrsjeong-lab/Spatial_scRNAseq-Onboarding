@@ -64,7 +64,7 @@ if __name__ == "__main__":
             with notebook.cell(f"Scatter-{gene}"):
                 fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
 
-                seaborn.scatterplot(data=pca_data.sort_values(gene, ascending=True), x=step00.projection_columns[0], y=step00.projection_columns[1], hue=gene, palette="Reds", legend="brief", rasterized=True, s=40, edgecolor=None, ax=ax)
+                seaborn.scatterplot(data=pca_data.sort_values(gene, ascending=True), x=step00.projection_columns[0], y=step00.projection_columns[1], hue=gene, palette="Reds", legend="brief", rasterized=True, s=5, edgecolor=None, ax=ax)
 
                 matplotlib.pyplot.xlabel(f"PC-1 ({variance_ratio[0] * 100:.1f}%)")
                 matplotlib.pyplot.ylabel(f"PC-2 ({variance_ratio[1] * 100:.1f}%)")
