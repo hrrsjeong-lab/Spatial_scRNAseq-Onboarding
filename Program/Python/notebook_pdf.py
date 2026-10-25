@@ -2,9 +2,9 @@
 notebook_pdf.py: Jupyter-like PDF report (code cell, printed output, figures) for sharing analysis scripts
 
 import notebook_pdf
-notebook = notebook_pdf.Notebook(title="Compare variable genes", script=__file__)
-with notebook.cell("Read data"):
-notebook.write_pdf(args.output)
+    notebook = notebook_pdf.Notebook(title="Compare variable genes", script=__file__)
+    with notebook.cell(""):
+    notebook.write_pdf(args.output)
 """
 import ast
 import contextlib
