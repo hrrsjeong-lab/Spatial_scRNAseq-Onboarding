@@ -331,8 +331,8 @@ Output/09_Xenium/Figures:
 Output/09_Xenium/Figures/%.zip: Python/draw_xenium_coordinates.py Output/08_Marker_genes/%.hdf5 | Output/09_Xenium/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-step09-test: Output/09_Xenium/Figures/Test.01_Seurat.01_umap.02_Louvain.10_McGregor2025_Xenium480.zip
-step09-optimal: Output/09_Xenium/Figures/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.10_McGregor2025_Xenium480.zip
+step09-test: Output/09_Xenium/Figures/Test.01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.zip
+step09-optimal: Output/09_Xenium/Figures/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.zip
 step09: $(addprefix Output/09_Xenium/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES)))))))
 .PHONY: step09-test step09-optimal step09
 
@@ -349,8 +349,8 @@ Output/10_Neighborhood/%.hdf5: Python/calculate_nhood_enrichment.py Output/08_Ma
 Output/10_Neighborhood/Figures/%.zip: Python/draw_nhood_enrichment.py Output/10_Neighborhood/%.hdf5 | Output/10_Neighborhood/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-step10-test: Output/10_Neighborhood/Test.01_Seurat.01_umap.02_Louvain.10_McGregor2025_Xenium480.hdf5 Output/10_Neighborhood/Figures/Test.01_Seurat.01_umap.02_Louvain.10_McGregor2025_Xenium480.zip
-step10-optimal: Output/10_Neighborhood/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.10_McGregor2025_Xenium480.hdf5 Output/10_Neighborhood/Figures/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.10_McGregor2025_Xenium480.zip
+step10-test: Output/10_Neighborhood/Test.01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.hdf5 Output/10_Neighborhood/Figures/Test.01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.zip
+step10-optimal: Output/10_Neighborhood/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.hdf5 Output/10_Neighborhood/Figures/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.zip
 step10: $(addprefix Output/10_Neighborhood/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES))))))) $(addprefix Output/10_Neighborhood/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES)))))))
 .PHONY: step10-test step10-optimal step10
 
@@ -367,14 +367,14 @@ Output/08_Marker_genes/References/McGregor2025_Xenium480_Level0_markers.tsv: | O
 Output/11_Evaluate_celltype/%.09_McGregor2025_Fibroblasts.hdf5: Python/evaluate_marker_genes.py Output/08_Marker_genes/%.09_McGregor2025_Fibroblasts.hdf5 Output/08_Marker_genes/References/09_McGregor2025_Fibroblasts.pkl Output/08_Marker_genes/References/McGregor2025_Fibroblasts.h5ad | Output/11_Evaluate_celltype $(EVALUATE_MARKER_TABLE)
 	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --model $(abspath $(word 3,$^)) --reference $(abspath $(word 4,$^)) --true-column "$(EVALUATE_TRUE_COLUMN)" --marker-table $(abspath $(EVALUATE_MARKER_TABLE)) $(LOGGING)
 
-Output/11_Evaluate_celltype/%.10_McGregor2025_Xenium480.hdf5: Python/evaluate_marker_genes.py Output/08_Marker_genes/%.10_McGregor2025_Xenium480.hdf5 Output/08_Marker_genes/References/10_McGregor2025_Xenium480.pkl Output/08_Marker_genes/References/McGregor2025_Xenium480.h5ad | Output/11_Evaluate_celltype $(EVALUATE_MARKER_TABLE)
+Output/11_Evaluate_celltype/%.09_McGregor2025_scRNA_all.hdf5: Python/evaluate_marker_genes.py Output/08_Marker_genes/%.09_McGregor2025_scRNA_all.hdf5 Output/08_Marker_genes/References/09_McGregor2025_scRNA_all.pkl Output/08_Marker_genes/References/McGregor2025_Xenium480.h5ad | Output/11_Evaluate_celltype $(EVALUATE_MARKER_TABLE)
 	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --model $(abspath $(word 3,$^)) --reference $(abspath $(word 4,$^)) --true-column "$(EVALUATE_TRUE_COLUMN)" --marker-table $(abspath $(EVALUATE_MARKER_TABLE)) $(LOGGING)
 
 Output/11_Evaluate_celltype/%.09_McGregor2025_scRNA_all.hdf5: Python/evaluate_marker_genes.py Output/08_Marker_genes/%.09_McGregor2025_scRNA_all.hdf5 Output/08_Marker_genes/References/09_McGregor2025_scRNA_all.pkl Output/00_Authors/McGregor2025_scRNA_all.hdf5 | Output/11_Evaluate_celltype $(EVALUATE_MARKER_TABLE)
 	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --model $(abspath $(word 3,$^)) --reference $(abspath $(word 4,$^)) --true-column "CellAnnotation.Level0" --marker-table $(abspath $(EVALUATE_MARKER_TABLE)) $(LOGGING)
 
-step11-test: Output/08_Marker_genes/References/McGregor2025_Xenium480_Level0_markers.tsv Output/11_Evaluate_celltype/Test.01_Seurat.01_umap.02_Louvain.10_McGregor2025_Xenium480.hdf5 Output/11_Evaluate_celltype/Figures/Test.01_Seurat.01_umap.02_Louvain.10_McGregor2025_Xenium480.zip
-step11-optimal: Output/08_Marker_genes/References/McGregor2025_Xenium480_Level0_markers.tsv Output/11_Evaluate_celltype/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.10_McGregor2025_Xenium480.hdf5 Output/11_Evaluate_celltype/Figures/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.10_McGregor2025_Xenium480.zip
+step11-test: Output/08_Marker_genes/References/McGregor2025_Xenium480_Level0_markers.tsv Output/11_Evaluate_celltype/Test.01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.hdf5 Output/11_Evaluate_celltype/Figures/Test.01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.zip
+step11-optimal: Output/08_Marker_genes/References/McGregor2025_Xenium480_Level0_markers.tsv Output/11_Evaluate_celltype/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.hdf5 Output/11_Evaluate_celltype/Figures/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.zip
 step11:
 .PHONY: step11-test step11-optimal step11
 
@@ -398,3 +398,21 @@ step12-test: Output/12_McGregor_figures/Test.pseudobulk.hdf5 Output/12_McGregor_
 step12-optimal: Output/12_McGregor_figures/$(OPTIMAL).pseudobulk.hdf5 Output/12_McGregor_figures/$(OPTIMAL).fibroblasts.hdf5 Output/12_McGregor_figures/Figures/$(OPTIMAL).ED10.zip
 step12: step12-test step12-optimal
 .PHONY: step12-test step12-optimal step12
+
+# Step 13 (Cell type prediction with ingest)
+Output/13_Ingest:
+	mkdir -p $@
+
+Output/13_Ingest/Figures:
+	mkdir -p $@
+
+Output/13_Ingest/%.hdf5: Python/predict_celltype_ingest.py Output/05_PCA/%.Compare.hdf5 Output/00_Authors/McGregor2025_scRNA_all.hdf5 Output/04_Highly_variable_genes/%.hdf5 | Output/13_Ingest
+	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $(word 3,$^) $@) --truth $(abspath $(word 4,$^)) --umap $(LOGGING)
+
+Output/13_Ingest/Figures/%.zip: Python/draw_marker_genes_2.py Output/13_Ingest/%.hdf5 | Output/13_Ingest/Figures
+	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
+
+step13-test: Output/13_Ingest/Test.01_Seurat.hdf5 Output/13_Ingest/Figures/Test.01_Seurat.zip
+step13-optimal: Output/13_Ingest/$(OPTIMAL).01_Seurat.hdf5 Output/13_Ingest/Figures/$(OPTIMAL).01_Seurat.zip
+step13: step13-test step13-optimal
+.PHONY: step13-test step13-optimal step13
