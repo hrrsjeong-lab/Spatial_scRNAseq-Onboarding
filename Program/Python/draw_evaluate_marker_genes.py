@@ -5,6 +5,7 @@ import typing
 import zipfile
 import matplotlib
 import matplotlib.figure
+import matplotlib.patches
 import matplotlib.pyplot
 import numpy
 import pandas
@@ -25,6 +26,16 @@ def natural_order(values: typing.Iterable) -> typing.List[str]:
     return values
 
 
+def label_order(values: typing.Iterable) -> typing.List[str]:
+    return sorted(set(map(str, values)), key=lambda value: (value.casefold(), value))
+
+
+def paired_order(rows: typing.Iterable, columns: typing.Iterable) -> typing.Tuple[typing.List[str], typing.List[str], int]:
+    # Labels present on both axes first, in the same sorted order (diagonal = same label), then the labels found on one axis only
+    shared = label_order(set(map(str, rows)) & set(map(str, columns)))
+    return shared + label_order(set(map(str, rows)) - set(shared)), shared + label_order(set(map(str, columns)) - set(shared)), len(shared)
+
+
 def save_figure(fig: matplotlib.figure.Figure, directory: str, name: str, figure_list: typing.List[str]) -> None:
     for suffix in ["pdf", "png"]:
         figure_list.append(f"{directory}/{name}.{suffix}")
@@ -32,10 +43,17 @@ def save_figure(fig: matplotlib.figure.Figure, directory: str, name: str, figure
     matplotlib.pyplot.close(fig)
 
 
-def draw_heatmap(data: pandas.DataFrame, xlabel: str, ylabel: str, directory: str, name: str, figure_list: typing.List[str], **kwargs) -> None:
+def draw_heatmap(data: pandas.DataFrame, xlabel: str, ylabel: str, directory: str, name: str, figure_list: typing.List[str], diagonal: int = 0, **kwargs) -> None:
     fig, ax = matplotlib.pyplot.subplots(figsize=(max(24, 1.0 * data.shape[1] + 10), max(18, 0.6 * data.shape[0] + 8)))
 
-    seaborn.heatmap(data=data, annot=(data.size <= 600), fmt=".2f", annot_kws={"size": "xx-small"}, cbar=True, ax=ax, **kwargs)
+    seaborn.heatmap(data=data, annot=(data.size <= 600), fmt=".2f", annot_kws={"size": "xx-small"}, cbar=True, xticklabels=True, yticklabels=True, ax=ax, **kwargs)
+
+    if diagonal > 0:
+        for i in range(diagonal):
+            ax.add_patch(matplotlib.patches.Rectangle((i, i), 1, 1, fill=False, edgecolor="black", linewidth=2))
+        ax.axhline(diagonal, color="black", linewidth=2)
+        ax.axvline(diagonal, color="black", linewidth=2)
+        matplotlib.pyplot.title(f"Same label on both axes: {diagonal} (boxed diagonal)", fontsize="small")
 
     matplotlib.pyplot.xticks(fontsize="xx-small", rotation="vertical")
     matplotlib.pyplot.yticks(fontsize="xx-small", rotation="horizontal")
@@ -132,15 +150,16 @@ if __name__ == "__main__":
         for column in ["Truth"] + prediction_list:
             data = obs_data if (column != "Truth") else labelled_data
             cluster_data = pandas.crosstab(data["Clustering"], data[column], normalize="index").reindex(index=[cluster for cluster in cluster_order if cluster in set(data["Clustering"])])
-            cluster_data = cluster_data.loc[:, cluster_data.sum(axis=0).sort_values(ascending=False).index]
+            cluster_data = cluster_data.loc[:, label_order(cluster_data.columns)]
             cluster_data.index.name = None
             cluster_data.columns.name = None
             draw_heatmap(cluster_data, column, "Clustering", directory, f"Cluster-{column.replace(' ', '_')}", figure_list, vmin=0.0, vmax=1.0, cmap="YlOrRd")
 
         for prediction in prediction_list:
             crosstab_data = evaluation[f"{prediction.replace(' ', '_')}_crosstab"].astype(float)
-            crosstab_data = crosstab_data.loc[crosstab_data.sum(axis=1).sort_values(ascending=False).index, crosstab_data.sum(axis=0).sort_values(ascending=False).index]
-            draw_heatmap(crosstab_data.div(crosstab_data.sum(axis=1), axis=0), prediction, "Truth", directory, f"Truth-{prediction.replace(' ', '_')}", figure_list, vmin=0.0, vmax=1.0, cmap="YlOrRd")
+            row_order, column_order, n_shared = paired_order(crosstab_data.index, crosstab_data.columns)
+            crosstab_data = crosstab_data.reindex(index=row_order, columns=column_order, fill_value=0.0)
+            draw_heatmap(crosstab_data.div(crosstab_data.sum(axis=1), axis=0), prediction, "Truth", directory, f"Truth-{prediction.replace(' ', '_')}", figure_list, diagonal=n_shared, vmin=0.0, vmax=1.0, cmap="YlOrRd")
 
         focus_data = evaluation["Focus_composition"].astype(float).head(args.top)
         fig, ax = matplotlib.pyplot.subplots(figsize=(32, max(18, 0.8 * len(focus_data) + 6)))
@@ -164,10 +183,10 @@ if __name__ == "__main__":
             if key not in evaluation:
                 continue
             marker_data = evaluation[key].drop(columns="Own marker set rank").astype(float)
-            marker_data = marker_data.loc[[label for label in composition_data.index if label in marker_data.index]]
-            marker_data = marker_data[[label for label in marker_data.index if label in marker_data.columns] + [label for label in marker_data.columns if label not in marker_data.index]]
+            row_order, column_order, n_shared = paired_order(marker_data.index, marker_data.columns)
+            marker_data = marker_data.loc[row_order, column_order]
             limit = float(numpy.nanquantile(numpy.abs(marker_data.to_numpy()), 0.98)) or 1.0
-            draw_heatmap(marker_data, "Marker set (authors' FindAllMarkers)", prediction, directory, f"Marker-score-{prediction.replace(' ', '_')}", figure_list, vmin=-limit, vmax=limit, center=0.0, cmap="RdBu_r")
+            draw_heatmap(marker_data, "Marker set (authors' FindAllMarkers)", prediction, directory, f"Marker-score-{prediction.replace(' ', '_')}", figure_list, diagonal=n_shared, vmin=-limit, vmax=limit, center=0.0, cmap="RdBu_r")
 
         with zipfile.ZipFile(args.output, mode="w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as zip_file:
             for figure in tqdm.tqdm(figure_list):

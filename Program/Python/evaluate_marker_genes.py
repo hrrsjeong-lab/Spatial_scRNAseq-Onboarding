@@ -1,4 +1,6 @@
 import argparse
+import re
+import typing
 import anndata
 import celltypist
 import celltypist.models
@@ -22,6 +24,39 @@ def clean_table(table: pandas.DataFrame) -> pandas.DataFrame:
     table.index.name = None
     table.columns.name = None
     return table
+
+
+def label_key(label: str) -> str:
+    # Spelling-insensitive key: case, spaces, hyphens and a plural "s" are ignored (B-cells = B-Cells, Lymphatic = Lymphatics)
+    key = re.sub(r"[^0-9a-z]", "", str(label).casefold())
+    return key[:-1] if (key.endswith("s") and (len(key) > 3)) else key
+
+
+def unique_keys(labels: typing.Iterable[str]) -> typing.Dict[str, str]:
+    # key -> label, only for keys that point to exactly one label
+    keys = pandas.Series(sorted(set(labels)), dtype=object)
+    keys.index = keys.map(label_key)
+    return keys.loc[~keys.index.duplicated(keep=False)].to_dict()
+
+
+def match_labels(predicted_labels: typing.Iterable[str], truth_labels: typing.Set[str], parent_dict: typing.Dict[str, str], label_map: typing.Dict[str, str]) -> pandas.DataFrame:
+    # Predicted label -> label at the truth level; rules in order: --label-map, exact name, spelling key, parent of a same-named --fine-column label
+    truth_keys, fine_keys = unique_keys(truth_labels), unique_keys(parent_dict)
+    rows = dict()
+    for label in predicted_labels:
+        if label in label_map:
+            rows[label] = (label_map[label], "Label map")
+        elif label in truth_labels:
+            rows[label] = (label, "Exact")
+        elif label_key(label) in truth_keys:
+            rows[label] = (truth_keys[label_key(label)], "Spelling")
+        elif label in parent_dict:
+            rows[label] = (parent_dict[label], "Fine label parent")
+        elif label_key(label) in fine_keys:
+            rows[label] = (parent_dict[fine_keys[label_key(label)]], "Fine label parent")
+        else:
+            rows[label] = (label, "Unmatched")
+    return pandas.DataFrame.from_dict(rows, orient="index", columns=["Evaluated label", "Rule"])
 
 
 def confidence(probability: pandas.DataFrame) -> pandas.DataFrame:
@@ -61,6 +96,8 @@ if __name__ == "__main__":
     parser.add_argument("--model", help="celltypist model PKL used in step 08; adds the Renormalized prediction", type=str, default=None)
     parser.add_argument("--reference", help="Reference H5AD used to train the model; gives the training genes when the model has no normalization_genes", type=str, default=None)
     parser.add_argument("--true-column", help="obs column with the authors' labels", type=str, default="CellAnnotation.Level3")
+    parser.add_argument("--fine-column", help="Finer obs column (e.g. CellAnnotation.Level3); a predicted label equal to one of its labels is rolled up to that label's --true-column parent", type=str, default=None)
+    parser.add_argument("--label-map", help="Tab-separated file with a header: predicted label, label at the --true-column level (applied before the automatic rules)", type=str, default=None)
     parser.add_argument("--focus-label", help="Predicted label to break down by truth (default: largest Pipeline majority label)", type=str, default=None)
     parser.add_argument("--marker-table", help="Seurat FindAllMarkers table (tab-separated) of the reference labels", type=str, default=None)
     parser.add_argument("--top-markers", help="Positive markers per label from --marker-table", type=int, default=20)
@@ -79,9 +116,11 @@ if __name__ == "__main__":
     input_adata = scanpy.read_h5ad(args.input)
     print(input_adata)
 
-    if args.true_column not in input_adata.obs.columns:
+    for column in [args.true_column] + ([args.fine_column] if args.fine_column else []):
+        if column in input_adata.obs.columns:
+            continue
         candidates = {column: int(input_adata.obs[column].nunique()) for column in tqdm.tqdm(input_adata.obs.columns) if (not pandas.api.types.is_numeric_dtype(input_adata.obs[column])) and (input_adata.obs[column].nunique() <= 300)}
-        raise KeyError(f"{args.true_column} not in obs; label-like columns (levels): {candidates}")
+        raise KeyError(f"{column} not in obs; label-like columns (levels): {candidates}")
 
     labelled = input_adata.obs[args.true_column].notna().to_numpy()
     print("Cells with a truth label:", int(labelled.sum()), "/", input_adata.n_obs)
@@ -146,7 +185,32 @@ if __name__ == "__main__":
 
     majority_list = [prediction for prediction in prediction_list if prediction.endswith("majority")]
 
+    # Put every prediction on the --true-column level so that truth and predicted labels can be compared one-to-one
+    truth_labels = set(truth[labelled])
+    parent_dict: typing.Dict[str, str] = dict()
+    if args.fine_column:
+        fine_labelled = labelled & input_adata.obs[args.fine_column].notna().to_numpy()
+        parent_table = pandas.crosstab(safe_series(input_adata.obs.loc[fine_labelled, args.fine_column]), truth[fine_labelled])
+        parent_dict = parent_table.idxmax(axis=1).to_dict()
+        print("Fine labels:", len(parent_dict), "| lowest parent purity:", (parent_table.max(axis=1) / parent_table.sum(axis=1)).sort_values().head(5).round(3).to_dict())
+    label_map_dict: typing.Dict[str, str] = dict()
+    if args.label_map:
+        label_map_data = pandas.read_csv(args.label_map, sep="\t", dtype=str).iloc[:, :2].dropna()
+        label_map_dict = dict(zip(label_map_data.iloc[:, 0].map(step00.safe_celltype), label_map_data.iloc[:, 1].map(step00.safe_celltype)))
+        print("Label map:", label_map_dict, "| targets outside the truth labels:", sorted(set(label_map_dict.values()) - truth_labels))
+
+    label_match = match_labels(sorted(set().union(*[set(result[prediction]) for prediction in prediction_list])), truth_labels, parent_dict, label_map_dict)
+    label_match = label_match.join(pandas.DataFrame({prediction: result[prediction].value_counts() for prediction in prediction_list}).fillna(0).astype(int))
+    for prediction in prediction_list:
+        result[f"{prediction} model label"] = result[prediction]
+        result[prediction] = result[prediction].map(label_match["Evaluated label"])
+    with pandas.option_context("display.width", 250, "display.max_columns", None, "display.max_rows", 200):
+        print(label_match.sort_values(["Rule", "Evaluated label"]).to_string())
+    print("Truth labels without a predicted counterpart:", sorted(truth_labels - set(label_match["Evaluated label"])))
+    parameters.update({"fine_column": str(args.fine_column), "label_map": str(args.label_map)})
+
     tables = dict()
+    tables["Label_match"] = clean_table(label_match)
     summary_list = list()
     labelled_result = result.loc[labelled]
     for prediction in tqdm.tqdm(prediction_list):
@@ -190,6 +254,9 @@ if __name__ == "__main__":
         marker_data = pandas.read_csv(args.marker_table, sep="\t")
         marker_data = marker_data.loc[(marker_data["avg_log2FC"] > 0) & (marker_data["p_val_adj"] < 0.05) & marker_data["gene"].isin(set(input_adata.var.index))]
         marker_dict = {step00.safe_celltype(str(label)): list(group.sort_values("avg_log2FC", ascending=False)["gene"].iloc[:args.top_markers]) for label, group in marker_data.groupby("cluster")}
+        marker_names = match_labels(list(marker_dict), truth_labels, dict(), dict())["Evaluated label"]
+        marker_names = marker_names.where(~marker_names.duplicated(keep=False), marker_names.index.to_series())  # rename only one-to-one (exact or spelling)
+        marker_dict = {marker_names[label]: genes for label, genes in marker_dict.items()}
         log_data = scipy.sparse.csc_matrix(input_adata.layers[step00.log_column])
         gene_index = {gene: i for i, gene in enumerate(input_adata.var.index)}
         score_data = pandas.DataFrame({label: numpy.asarray(log_data[:, [gene_index[gene] for gene in genes]].mean(axis=1)).ravel() for label, genes in tqdm.tqdm(marker_dict.items())}, index=input_adata.obs.index)
