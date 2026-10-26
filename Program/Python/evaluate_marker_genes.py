@@ -42,7 +42,7 @@ def summarize(truth: pandas.Series, predicted: pandas.Series, name: str) -> dict
 
 def label_tables(truth: pandas.Series, predicted: pandas.Series, scores: pandas.DataFrame) -> dict:
     table = pandas.crosstab(truth, predicted)
-    by_truth = pandas.DataFrame({"Cells": table.sum(axis=1), "Same name": [(table.loc[label, label] / table.loc[label].sum()) if (label in table.columns) else numpy.nan for label in tqdm.tqmd(table.index]), "Top prediction": table.idxmax(axis=1), "Top prediction fraction": table.max(axis=1) / table.sum(axis=1)})
+    by_truth = pandas.DataFrame({"Cells": table.sum(axis=1), "Same name": [(table.loc[label, label] / table.loc[label].sum()) if (label in table.columns) else numpy.nan for label in tqdm.tqdm(table.index)], "Top prediction": table.idxmax(axis=1), "Top prediction fraction": table.max(axis=1) / table.sum(axis=1)})
     by_predicted = pandas.DataFrame({"Cells": table.sum(axis=0), "Same name": [(table.loc[label, label] / table[label].sum()) if (label in table.index) else numpy.nan for label in table.columns], "Top truth": table.idxmax(axis=0), "Top truth fraction": table.max(axis=0) / table.sum(axis=0)})
     by_predicted = by_predicted.join(scores.groupby(predicted.to_numpy()).median().add_prefix("Median "))
 
@@ -152,7 +152,7 @@ if __name__ == "__main__":
     for prediction in tqdm.tqdm(prediction_list):
         prefix = prediction.split()[0]
         summary_list.append(summarize(labelled_result["Truth"], labelled_result[prediction], prediction))
-        for name, table in tqdm.tqdm(label_tables(labelled_result["Truth"], labelled_result[prediction], labelled_result[[f"{prefix} Max probability", f"{prefix} Margin"]]).items(), level=1, leave=False):
+        for name, table in tqdm.tqdm(label_tables(labelled_result["Truth"], labelled_result[prediction], labelled_result[[f"{prefix} Max probability", f"{prefix} Margin"]]).items(), leave=False):
             tables[f"{prediction.replace(' ', '_')}_{name}"] = table
     tables["Summary"] = pandas.DataFrame(summary_list).set_index("Prediction")
     if "Training gene count fraction" in result.columns:
