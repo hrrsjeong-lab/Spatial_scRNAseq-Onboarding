@@ -6,7 +6,7 @@ MEMS = 100
 MEM_PER_CPU = $(shell echo '$(MEMS)/$(CPUS)' | bc)
 
 # Programs
-SLURM = srun --chdir=$(abspath .) --cpus-per-task=$(CPUS) --export=ALL --job-name="Spatial_$(@F)" --mem=$(MEMS)G --mail-user="jaewoong@gist.ac.kr" --mail-type=FAIL
+SLURM = srun --chdir=$(abspath .) --cpus-per-task=$(CPUS) --export=ALL --job-name="$(PROJECT)_$(@F)" --mem=$(MEMS)G --mail-user="jaewoong@gist.ac.kr" --mail-type=FAIL
 GPUS = --gpus=1
 PYTHON = /home/Live/jaewoong/Spatial_scRNAseq-Onboarding/.venv/bin/python3 -B -u -X faulthandler
 R = /usr/bin/env RENV_CONFIG_SYNCHRONIZED_CHECK=FALSE /usr/bin/Rscript
@@ -316,8 +316,11 @@ Output/08_Marker_genes/%.10_McGregor2025_Xenium480.hdf5: Python/select_marker_ge
 Output/08_Marker_genes/%.09_McGregor2025_scRNA_all.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/09_McGregor2025_scRNA_all.pkl
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-step08-test: Output/08_Marker_genes/References/10_McGregor2025_Xenium480.pkl Output/08_Marker_genes/Test.01_Seurat.01_umap.02_Louvain.10_McGregor2025_Xenium480.hdf5 Output/08_Marker_genes/Figures/Test.01_Seurat.01_umap.02_Louvain.10_McGregor2025_Xenium480.zip
-step08-optimal: Output/08_Marker_genes/References/10_McGregor2025_Xenium480.pkl Output/08_Marker_genes/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.10_McGregor2025_Xenium480.hdf5 Output/08_Marker_genes/Figures/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.10_McGregor2025_Xenium480.zip
+Output/08_Marker_genes/Figures/%.zip: Python/draw_marker_genes.py Output/08_Marker_genes/%.hdf5 | Output/08_Marker_genes/Figures
+	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
+
+step08-test: Output/08_Marker_genes/References/09_McGregor2025_scRNA_all.pkl Output/08_Marker_genes/Test.01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.hdf5 Output/08_Marker_genes/Figures/Test.01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.zip
+step08-optimal: Output/08_Marker_genes/References/09_McGregor2025_scRNA_all.pkl Output/08_Marker_genes/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.hdf5 Output/08_Marker_genes/Figures/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.zip
 step08: $(addprefix Output/08_Marker_genes/References/,$(addsuffix .pkl,$(CELLTYPES))) $(addprefix Output/08_Marker_genes/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES))))))) $(addprefix Output/08_Marker_genes/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES)))))))
 .PHONY: step08-test step08-optimal step08
 
