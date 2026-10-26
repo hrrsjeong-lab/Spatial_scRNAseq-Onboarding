@@ -35,7 +35,9 @@ MCGREGOR_XENIUM_ASSAY =
 MCGREGOR_XENIUM_LABEL = CellAnnotation.Level0.Factor
 MCGREGOR_XENIUM_PER_LABEL = 5000
 
-EVALUATE_TRUE_COLUMN = CellAnnotation.Level3
+EVALUATE_TRUE_COLUMN = CellAnnotation.Level0
+EVALUATE_FINE_COLUMN = CellAnnotation.Level3
+EVALUATE_LABEL_MAP_09 = Metadata/McGregor2025_scRNA_all_to_Level0.tsv
 EVALUATE_MARKER_TABLE = Output/08_Marker_genes/References/McGregor2025_Xenium480_Level0_markers.tsv
 
 MCGREGOR_LINEAGE_COLUMN = CellAnnotation.Level0
@@ -361,17 +363,14 @@ Output/11_Evaluate_celltype/Figures:
 Output/08_Marker_genes/References/McGregor2025_Xenium480_Level0_markers.tsv: | Output/08_Marker_genes/References
 	wget "https://data.mendeley.com/public-files/datasets/64fkdfcpzb/files/ac2e8611-ee1e-488a-9555-e5361c06940a/file_downloaded" -O $(abspath $@) $(LOGGING)
 
-Output/11_Evaluate_celltype/%.09_McGregor2025_scRNA_all.hdf5: Python/evaluate_marker_genes.py Output/08_Marker_genes/%.09_McGregor2025_scRNA_all.hdf5 Output/08_Marker_genes/References/09_McGregor2025_scRNA_all.pkl Output/08_Marker_genes/References/McGregor2025_Xenium480.h5ad | Output/11_Evaluate_celltype $(EVALUATE_MARKER_TABLE)
-	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --model $(abspath $(word 3,$^)) --reference $(abspath $(word 4,$^)) --true-column "$(EVALUATE_TRUE_COLUMN)" --marker-table $(abspath $(EVALUATE_MARKER_TABLE)) $(LOGGING)
-
 Output/11_Evaluate_celltype/%.10_McGregor2025_Xenium480.hdf5: Python/evaluate_marker_genes.py Output/08_Marker_genes/%.10_McGregor2025_Xenium480.hdf5 Output/08_Marker_genes/References/10_McGregor2025_Xenium480.pkl Output/08_Marker_genes/References/McGregor2025_Xenium480.h5ad | Output/11_Evaluate_celltype $(EVALUATE_MARKER_TABLE)
-	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --model $(abspath $(word 3,$^)) --reference $(abspath $(word 4,$^)) --true-column "$(EVALUATE_TRUE_COLUMN)" --marker-table $(abspath $(EVALUATE_MARKER_TABLE)) $(LOGGING)
+	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --model $(abspath $(word 3,$^)) --reference $(abspath $(word 4,$^)) --true-column "$(EVALUATE_TRUE_COLUMN)" --fine-column "$(EVALUATE_FINE_COLUMN)" --marker-table $(abspath $(EVALUATE_MARKER_TABLE)) $(LOGGING)
+
+Output/11_Evaluate_celltype/%.09_McGregor2025_scRNA_all.hdf5: Python/evaluate_marker_genes.py Output/08_Marker_genes/%.09_McGregor2025_scRNA_all.hdf5 Output/08_Marker_genes/References/09_McGregor2025_scRNA_all.pkl Output/00_Authors/McGregor2025_scRNA_all.hdf5 $(EVALUATE_LABEL_MAP_09) | Output/11_Evaluate_celltype $(EVALUATE_MARKER_TABLE)
+	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --model $(abspath $(word 3,$^)) --reference $(abspath $(word 4,$^)) --true-column "$(EVALUATE_TRUE_COLUMN)" --fine-column "$(EVALUATE_FINE_COLUMN)" --label-map $(abspath $(word 5,$^)) --marker-table $(abspath $(EVALUATE_MARKER_TABLE)) $(LOGGING)
 
 Output/11_Evaluate_celltype/Figures/%.zip: Python/draw_evaluate_marker_genes.py Output/11_Evaluate_celltype/%.hdf5 | Output/11_Evaluate_celltype/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
-
-Output/11_Evaluate_celltype/%.09_McGregor2025_scRNA_all.hdf5: Python/evaluate_marker_genes.py Output/08_Marker_genes/%.09_McGregor2025_scRNA_all.hdf5 Output/08_Marker_genes/References/09_McGregor2025_scRNA_all.pkl Output/00_Authors/McGregor2025_scRNA_all.hdf5 | Output/11_Evaluate_celltype $(EVALUATE_MARKER_TABLE)
-	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --model $(abspath $(word 3,$^)) --reference $(abspath $(word 4,$^)) --true-column "CellAnnotation.Level0" --marker-table $(abspath $(EVALUATE_MARKER_TABLE)) $(LOGGING)
 
 step11-test: Output/08_Marker_genes/References/McGregor2025_Xenium480_Level0_markers.tsv Output/11_Evaluate_celltype/Test.01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.hdf5 Output/11_Evaluate_celltype/Figures/Test.01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.zip
 step11-optimal: Output/08_Marker_genes/References/McGregor2025_Xenium480_Level0_markers.tsv Output/11_Evaluate_celltype/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.hdf5 Output/11_Evaluate_celltype/Figures/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.zip
@@ -407,7 +406,7 @@ Output/13_Ingest/Figures:
 	mkdir -p $@
 
 Output/13_Ingest/%.hdf5: Python/predict_celltype_ingest.py Output/05_PCA/%.Compare.hdf5 Output/00_Authors/McGregor2025_scRNA_all.hdf5 Output/04_Highly_variable_genes/%.hdf5 | Output/13_Ingest
-	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $(word 3,$^) $@) --truth $(abspath $(word 4,$^)) --umap $(LOGGING)
+	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $(word 3,$^) $@) --truth $(abspath $(word 4,$^)) --truth-column "$(EVALUATE_TRUE_COLUMN)" --umap $(LOGGING)
 
 Output/13_Ingest/Figures/%.zip: Python/draw_marker_genes_2.py Output/13_Ingest/%.hdf5 | Output/13_Ingest/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
