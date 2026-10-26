@@ -307,9 +307,6 @@ Output/08_Marker_genes/%.07_CRC.hdf5: Python/select_marker_genes.py Output/07_Cl
 Output/08_Marker_genes/%.08_Crohn.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/08_Crohn.pkl
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-Output/08_Marker_genes/%.09_McGregor2025_Fibroblasts.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/09_McGregor2025_Fibroblasts.pkl
-	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
-
 Output/08_Marker_genes/%.10_McGregor2025_Xenium480.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/10_McGregor2025_Xenium480.pkl
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
@@ -364,18 +361,21 @@ Output/11_Evaluate_celltype/Figures:
 Output/08_Marker_genes/References/McGregor2025_Xenium480_Level0_markers.tsv: | Output/08_Marker_genes/References
 	wget "https://data.mendeley.com/public-files/datasets/64fkdfcpzb/files/ac2e8611-ee1e-488a-9555-e5361c06940a/file_downloaded" -O $(abspath $@) $(LOGGING)
 
-Output/11_Evaluate_celltype/%.09_McGregor2025_Fibroblasts.hdf5: Python/evaluate_marker_genes.py Output/08_Marker_genes/%.09_McGregor2025_Fibroblasts.hdf5 Output/08_Marker_genes/References/09_McGregor2025_Fibroblasts.pkl Output/08_Marker_genes/References/McGregor2025_Fibroblasts.h5ad | Output/11_Evaluate_celltype $(EVALUATE_MARKER_TABLE)
-	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --model $(abspath $(word 3,$^)) --reference $(abspath $(word 4,$^)) --true-column "$(EVALUATE_TRUE_COLUMN)" --marker-table $(abspath $(EVALUATE_MARKER_TABLE)) $(LOGGING)
-
 Output/11_Evaluate_celltype/%.09_McGregor2025_scRNA_all.hdf5: Python/evaluate_marker_genes.py Output/08_Marker_genes/%.09_McGregor2025_scRNA_all.hdf5 Output/08_Marker_genes/References/09_McGregor2025_scRNA_all.pkl Output/08_Marker_genes/References/McGregor2025_Xenium480.h5ad | Output/11_Evaluate_celltype $(EVALUATE_MARKER_TABLE)
 	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --model $(abspath $(word 3,$^)) --reference $(abspath $(word 4,$^)) --true-column "$(EVALUATE_TRUE_COLUMN)" --marker-table $(abspath $(EVALUATE_MARKER_TABLE)) $(LOGGING)
+
+Output/11_Evaluate_celltype/%.10_McGregor2025_Xenium480.hdf5: Python/evaluate_marker_genes.py Output/08_Marker_genes/%.10_McGregor2025_Xenium480.hdf5 Output/08_Marker_genes/References/10_McGregor2025_Xenium480.pkl Output/08_Marker_genes/References/McGregor2025_Xenium480.h5ad | Output/11_Evaluate_celltype $(EVALUATE_MARKER_TABLE)
+	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --model $(abspath $(word 3,$^)) --reference $(abspath $(word 4,$^)) --true-column "$(EVALUATE_TRUE_COLUMN)" --marker-table $(abspath $(EVALUATE_MARKER_TABLE)) $(LOGGING)
+
+Output/11_Evaluate_celltype/Figures/%.zip: Python/draw_evaluate_marker_genes.py Output/11_Evaluate_celltype/%.hdf5 | Output/11_Evaluate_celltype/Figures
+	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 Output/11_Evaluate_celltype/%.09_McGregor2025_scRNA_all.hdf5: Python/evaluate_marker_genes.py Output/08_Marker_genes/%.09_McGregor2025_scRNA_all.hdf5 Output/08_Marker_genes/References/09_McGregor2025_scRNA_all.pkl Output/00_Authors/McGregor2025_scRNA_all.hdf5 | Output/11_Evaluate_celltype $(EVALUATE_MARKER_TABLE)
 	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --model $(abspath $(word 3,$^)) --reference $(abspath $(word 4,$^)) --true-column "CellAnnotation.Level0" --marker-table $(abspath $(EVALUATE_MARKER_TABLE)) $(LOGGING)
 
 step11-test: Output/08_Marker_genes/References/McGregor2025_Xenium480_Level0_markers.tsv Output/11_Evaluate_celltype/Test.01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.hdf5 Output/11_Evaluate_celltype/Figures/Test.01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.zip
 step11-optimal: Output/08_Marker_genes/References/McGregor2025_Xenium480_Level0_markers.tsv Output/11_Evaluate_celltype/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.hdf5 Output/11_Evaluate_celltype/Figures/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.zip
-step11:
+step11: step11-test step11-optimal
 .PHONY: step11-test step11-optimal step11
 
 # Step 12 (McGregor 2025 Extended Data Fig. 10)
