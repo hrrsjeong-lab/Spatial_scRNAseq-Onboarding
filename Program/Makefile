@@ -39,6 +39,7 @@ EVALUATE_TRUE_COLUMN = CellAnnotation.Level0
 EVALUATE_FINE_COLUMN = CellAnnotation.Level3
 EVALUATE_LABEL_MAP_09 = Metadata/McGregor2025_scRNA_all_to_Level0.tsv
 EVALUATE_MARKER_TABLE = Output/08_Marker_genes/References/McGregor2025_Xenium480_Level0_markers.tsv
+EVALUATE_INGEST_REFERENCE = 01_umap.02_Louvain.09_McGregor2025_scRNA_all
 
 MCGREGOR_LINEAGE_COLUMN = CellAnnotation.Level0
 MCGREGOR_SUBTYPE_COLUMN = CellAnnotation.Level3
@@ -415,3 +416,21 @@ step13-test: Output/13_Ingest/Test.01_Seurat.hdf5 Output/13_Ingest/Figures/Test.
 step13-optimal: Output/13_Ingest/$(OPTIMAL).01_Seurat.hdf5 Output/13_Ingest/Figures/$(OPTIMAL).01_Seurat.zip
 step13: step13-test step13-optimal
 .PHONY: step13-test step13-optimal step13
+
+# Step 14 (Evaluate ingest)
+Output/14_Evaluate_ingest:
+	mkdir -p $@
+
+Output/14_Evaluate_ingest/Figures:
+	mkdir -p $@
+
+Output/14_Evaluate_ingest/%.hdf5: Python/evaluate_celltype_ingest.py Output/13_Ingest/%.hdf5 Output/11_Evaluate_celltype/%.$(EVALUATE_INGEST_REFERENCE).hdf5 $(EVALUATE_LABEL_MAP_09) Python/evaluate_marker_genes.py | Output/14_Evaluate_ingest
+	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $(word 3,$^) $@) --label-map $(abspath $(word 4,$^)) $(LOGGING)
+
+Output/14_Evaluate_ingest/Figures/%.zip: Python/draw_evaluate_marker_genes.py Output/14_Evaluate_ingest/%.hdf5 | Output/14_Evaluate_ingest/Figures
+	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
+
+step14-test: Output/14_Evaluate_ingest/Test.01_Seurat.hdf5 Output/14_Evaluate_ingest/Figures/Test.01_Seurat.zip
+step14-optimal: Output/14_Evaluate_ingest/$(OPTIMAL).01_Seurat.hdf5 Output/14_Evaluate_ingest/Figures/$(OPTIMAL).01_Seurat.zip
+step14: step14-test step14-optimal
+.PHONY: step14-test step14-optimal step14
