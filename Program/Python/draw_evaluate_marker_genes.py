@@ -14,7 +14,7 @@ import seaborn
 import tqdm
 import step00
 
-candidate_prediction_list = ["Pipeline majority", "Renormalized majority"]
+candidate_prediction_list = ["Pipeline majority", "Renormalized majority", "Ingest majority"]
 summary_metric_dict = {"Best-match accuracy truth to predicted": "Best-match\ntruth to pred.", "Best-match accuracy predicted to truth": "Best-match\npred. to truth", "ARI": "ARI", "NMI": "NMI", "Largest predicted fraction": "Largest\npredicted fraction"}
 
 
