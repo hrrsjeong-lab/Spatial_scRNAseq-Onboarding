@@ -17,7 +17,7 @@ def to_numpy(array) -> numpy.ndarray:
     return array.get() if hasattr(array, "get") else numpy.asarray(array)
 
 
-def merge_omics(adata_dict: dict[str, anndata.AnnData], excluded_genes: set[str]) -> anndata.AnnData:
+def merge_omics(adata_dict: dict[str, anndata.AnnData]) -> anndata.AnnData:
     first_adata = next(iter(adata_dict.values()))
     expressed_list = [set(adata.var_names[numpy.asarray(adata.X.sum(axis=0)).ravel() > 0]) for adata in adata_dict.values()]
     shared_genes = pandas.Index([gene for gene in first_adata.var_names if all(gene in expressed for expressed in expressed_list) and (gene not in excluded_genes)])
@@ -45,8 +45,8 @@ def merge_omics(adata_dict: dict[str, anndata.AnnData], excluded_genes: set[str]
 
     gene_data = pandas.DataFrame({"Genes": [adata.n_vars for adata in adata_dict.values()], "Expressed": [len(expressed) for expressed in expressed_list], "HVG": [int(adata.var["highly_variable"].sum()) for adata in adata_dict.values()], "Cells": [adata.n_obs for adata in adata_dict.values()]}, index=pandas.Index(names, name=step00.omics_column))
     print(gene_data)
-    joint_adata.uns["merge_omics"] = {"shared_genes": shared_genes.size, "variable_genes": int(joint_adata.var["highly_variable"].sum()), "excluded_genes": len(excluded_genes & set(first_adata.var_names)), "sample_prefixed": bool(sample_sets[0] & sample_sets[1]), "datasets": gene_data}
-    print("Shared genes:", shared_genes.size, "| PCA features (union of HVGs):", joint_adata.uns["merge_omics"]["variable_genes"], "| Excluded:", joint_adata.uns["merge_omics"]["excluded_genes"])
+    joint_adata.uns["merge_omics"] = {"shared_genes": shared_genes.size, "variable_genes": int(joint_adata.var["highly_variable"].sum()), "sample_prefixed": bool(sample_sets[0] & sample_sets[1]), "datasets": gene_data}
+    print("Shared genes:", shared_genes.size, "| PCA features (union of HVGs):", joint_adata.uns["merge_omics"]["variable_genes"])
     return joint_adata
 
 
@@ -75,7 +75,6 @@ if __name__ == "__main__":
     parser.add_argument("--sketch-cells", help="Cells to sketch per sample without --sketch-column (Seurat SketchData ncells)", type=int, default=5000)
     parser.add_argument("--pcs", help="Number of PCs (Seurat RunPCA npcs)", type=int, default=50)
     parser.add_argument("--neighbors", help="Number of neighbors for kNN graph (Seurat k.param)", type=int, default=30)
-    parser.add_argument("--exclude-genes", help="Genes removed before PCA (one per line, e.g. CRISPRclean targets)", type=str, default="")
     parser.add_argument("--mixing-cells", help="Random cells for the Omics mixing table", type=int, default=50000)
     parser.add_argument("--chunk", help="Cells per projection chunk", type=int, default=20000)
 
@@ -91,9 +90,7 @@ if __name__ == "__main__":
         adata_dict = {"Xenium": scanpy.read_h5ad(args.xenium), "scRNA": scanpy.read_h5ad(args.scrna)}
         for name, adata in tqdm.tqdm(adata_dict.items(), total=len(adata_dict)):
             print(name, adata)
-
-        excluded_genes = set(pandas.read_csv(args.exclude_genes, header=None).iloc[:, 0].astype(str)) if args.exclude_genes else set()
-        input_adata = merge_omics(adata_dict, excluded_genes)
+        input_adata = merge_omics(adata_dict)
         del adata_dict
         print(input_adata)
 
@@ -136,7 +133,7 @@ if __name__ == "__main__":
             rows = (sketch_omics == omics)
             mean[omics] = sketch_data[rows].mean(axis=0)
             std[omics] = sketch_data[rows].std(axis=0, ddof=1)
-            std[omics][(std[omics] == 0)] = 1.0
+            std[omics][(std[omics] <= step00.epsilon)] = 1.0
             scaled_data[rows] = scale(sketch_data[rows], mean[omics], std[omics])
         del sketch_data
 
@@ -171,7 +168,7 @@ if __name__ == "__main__":
         for omics in tqdm.tqdm(omics_list):
             rows = numpy.flatnonzero(omics_array == omics)
             for start in tqdm.tqdm(range(0, rows.size, args.chunk), desc=omics):
-                index = rows[start:start + args.chunk]
+                index = rows[start:(start + args.chunk)]
                 pca_embedding[index] = scale(data[index].toarray(), mean[omics], std[omics]) @ loadings
 
     with notebook.cell("Harmony"):
@@ -180,7 +177,7 @@ if __name__ == "__main__":
         harmony_embedding = to_numpy(harmony_adata.obsm[step00.harmony_key]).astype(numpy.float64)
         del harmony_adata
 
-    with notebook.cell(""):
+    with notebook.cell("Add obsm"):
         input_adata.obsm[step00.pca_key] = pca_embedding
         input_adata.obsm[step00.harmony_key] = harmony_embedding
         input_adata.obsm[step00.sketch_key] = numpy.where(sketch_mask[:, None], harmony_embedding, numpy.nan)

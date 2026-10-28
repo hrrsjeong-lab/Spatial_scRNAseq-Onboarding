@@ -46,7 +46,7 @@ if __name__ == "__main__":
     parser.add_argument("--sketch-column", help="Boolean obs column with pre-defined sketch cells (e.g. has_pca); leverage-score sketch if omitted", type=str, default=None)
     parser.add_argument("--sketch-method", help="Sketch method (Seurat SketchData method)", choices=["LeverageScore", "Uniform"], default="LeverageScore")
     parser.add_argument("--pcs", help="Number of PCs (Seurat RunPCA npcs)", type=int, default=50)
-    parser.add_argument("--neighbors", help="Number of neighbors for kNN graph (Seurat k.param)", type=int, default=20)
+    parser.add_argument("--neighbors", help="Number of neighbors for kNN graph (Seurat k.param)", type=int, default=30)
     parser.add_argument("--min-component", help="Remove cells in kNN components smaller than this (0 keeps all)", type=int, default=0)
 
     args = parser.parse_args()
@@ -54,7 +54,7 @@ if __name__ == "__main__":
     step00.check_suffix(args.input, {".hdf5", ".h5"})
     step00.check_suffix(args.output, {".hdf5", ".h5"})
 
-    notebook = notebook_pdf.Notebook(title="Joint PCA", script=__file__)
+    notebook = notebook_pdf.Notebook(title="Calculate PCA", script=__file__)
 
     with notebook.cell("Read data"):
         input_adata = scanpy.read_h5ad(args.input)
@@ -98,7 +98,7 @@ if __name__ == "__main__":
         sketch_data = data[sketch_mask].toarray()
         mean = sketch_data.mean(axis=0)
         std = sketch_data.std(axis=0, ddof=1)
-        std[(std == 0)] = 1.0
+        std[(std <= step00.epsilon)] = 1.0
         scaled_data = numpy.minimum((sketch_data - mean) / std, 10.0).astype(numpy.float64)
         del sketch_data
         sketch_adata = anndata.AnnData(X=scaled_data, obs=input_adata.obs.loc[sketch_mask, [step00.sample_column]].copy())
@@ -161,7 +161,7 @@ if __name__ == "__main__":
         input_adata.uns[step00.pca_key] = {"variance": variance, "variance_ratio": variance_ratio, "null_variance_ratio": null_variance_ratio, "signal_pcs": signal_pcs, "n_features": int(data.shape[1]), "sketch_cells": args.sketch_cells, "sketch_method": (args.sketch_method if (args.sketch_column is None) else args.sketch_column)}
         print(input_adata)
 
-    with notebook.cell(""):
+    with notebook.cell("Neighbors"):
         rapids_singlecell.pp.neighbors(input_adata, n_neighbors=args.neighbors, use_rep=step00.harmony_key, algorithm="cagra", random_state=42)
 
         connectivities = input_adata.obsp["connectivities"].copy()
@@ -177,7 +177,7 @@ if __name__ == "__main__":
             rapids_singlecell.pp.neighbors(input_adata, n_neighbors=args.neighbors, use_rep=step00.harmony_key, algorithm="cagra", random_state=42)
             print("Removed cells:", (component_size < args.min_component).sum())
 
-    with notebook.cell(""):
+    with notebook.cell("Saving"):
         print(input_adata)
         input_adata.write_h5ad(args.output, **step00.anndata_compressions)
 
