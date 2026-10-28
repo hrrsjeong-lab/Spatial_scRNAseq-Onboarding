@@ -216,9 +216,9 @@ Output/06_Dimensional_reduction/%.04_trimap.hdf5: Python/calculate_trimap.py Out
 Output/06_Dimensional_reduction/Figures/%.zip: Python/compare_projection_omics.py Output/06_Dimensional_reduction/%.hdf5 | Output/06_Dimensional_reduction/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-step06-test: Output/06_Dimensional_reduction/Test.01_Seurat.01_umap.hdf5 Output/06_Dimensional_reduction/Test.01_Seurat.Compare.01_umap.hdf5 Output/06_Dimensional_reduction/Figures/Test.01_Seurat.Compare.01_umap.zip
-step06-optimal: Output/06_Dimensional_reduction/$(OPTIMAL).01_Seurat.01_umap.hdf5 Output/06_Dimensional_reduction/$(OPTIMAL).01_Seurat.Compare.01_umap.hdf5 Output/06_Dimensional_reduction/Figures/$(OPTIMAL).01_Seurat.Compare.01_umap.zip
-step06:
+step06-test: Output/06_Dimensional_reduction/Test.01_Seurat.01_umap.hdf5 Output/06_Dimensional_reduction/Test.01_Seurat.Compare.01_umap.hdf5 Output/06_Dimensional_reduction/Figures/Test.01_Seurat.Compare.01_umap.zip Output/06_Dimensional_reduction/Test.01_Seurat.GLUE.01_umap.hdf5 Output/06_Dimensional_reduction/Figures/Test.01_Seurat.GLUE.01_umap.zip
+step06-optimal: Output/06_Dimensional_reduction/$(OPTIMAL).01_Seurat.01_umap.hdf5 Output/06_Dimensional_reduction/$(OPTIMAL).01_Seurat.Compare.01_umap.hdf5 Output/06_Dimensional_reduction/Figures/$(OPTIMAL).01_Seurat.Compare.01_umap.zip Output/06_Dimensional_reduction/$(OPTIMAL).01_Seurat.GLUE.01_umap.hdf5 Output/06_Dimensional_reduction/Figures/$(OPTIMAL).01_Seurat.GLUE.01_umap.zip
+step06: $(addprefix Output/06_Dimensional_reduction/$(OPTIMAL).01_Seurat.,$(addsuffix .hdf5,$(PROJECTIONS))) $(addprefix Output/06_Dimensional_reduction/$(OPTIMAL).01_Seurat.Compare.,$(addsuffix .hdf5,$(PROJECTIONS))) $(addprefix Output/06_Dimensional_reduction/Figures/$(OPTIMAL).01_Seurat.Compare.,$(addsuffix .zip,$(PROJECTIONS))) $(addprefix Output/06_Dimensional_reduction/$(OPTIMAL).01_Seurat.GLUE.,$(addsuffix .hdf5,$(PROJECTIONS))) $(addprefix Output/06_Dimensional_reduction/Figures/$(OPTIMAL).01_Seurat.GLUE.,$(addsuffix .zip,$(PROJECTIONS)))
 .PHONY: step06-test step06-optimal step06
 
 # Step 07 (Clustering)
