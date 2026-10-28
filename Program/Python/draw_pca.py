@@ -55,8 +55,7 @@ if __name__ == "__main__":
             print(pca_data)
 
         with notebook.cell("Variance"):
-            rank_column = "dispersions_norm" if ("dispersions_norm" in input_adata.var.columns) else "variances_norm"
-            selected_genes = list(input_adata.var[(input_adata.var["highly_variable"])].sort_values(rank_column, ascending=False).iloc[:5, :].index)
+            selected_genes = list(input_adata.var[(input_adata.var["highly_variable"])].iloc[:5, :].index)
             pca_data = pandas.concat([pca_data, scanpy.get.obs_df(input_adata, keys=selected_genes)], axis="columns", verify_integrity=True, join="inner")
             print(pca_data)
 
