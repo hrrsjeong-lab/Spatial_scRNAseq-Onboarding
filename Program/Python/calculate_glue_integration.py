@@ -77,6 +77,19 @@ def shared_gene_consistency(embedding: numpy.ndarray, omics: numpy.ndarray, coun
     return pandas.DataFrame(rows)
 
 
+def add_pipeline_keys(adata: anndata.AnnData) -> pandas.DataFrame:
+    train_mask = adata.obs[step00.sketch_column].to_numpy(dtype=bool)
+    normalized = sklearn.preprocessing.normalize(numpy.asarray(adata.obsm[step00.glue_column], dtype=numpy.float64))
+    rotation = sklearn.decomposition.PCA(n_components=normalized.shape[1], svd_solver="full").fit(normalized[train_mask])
+    ordered = rotation.transform(normalized).astype(numpy.float64)
+
+    adata.obsm[step00.pca_key] = ordered
+    adata.obsm[step00.harmony_key] = ordered.copy()
+    adata.obsm[step00.sketch_key] = numpy.where(train_mask[:, None], ordered, numpy.nan)
+    adata.uns[step00.pca_key] = {"variance": rotation.explained_variance_.astype(numpy.float64), "variance_ratio": rotation.explained_variance_ratio_.astype(numpy.float64), "n_features": int(adata.var["highly_variable"].sum()), "fit_cells": int(train_mask.sum()), "source": f"Full-rank PCA rotation of L2-normalised {step00.glue_column}"}
+    return pandas.DataFrame({"Ratio": rotation.explained_variance_ratio_, "Cumulative": numpy.cumsum(rotation.explained_variance_ratio_)}, index=[f"PC{i + 1}" for i in range(normalized.shape[1])])
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
@@ -184,6 +197,10 @@ if __name__ == "__main__":
         input_adata.varm[step00.glue_column] = feature_embedding.reindex(input_adata.var_names).to_numpy(dtype=numpy.float64)
         consistency_data = shared_gene_consistency(glue_embedding[train_mask], omics_array[train_mask], scipy.sparse.csr_matrix(input_adata.X)[train_mask][:, feature_mask])
         print(consistency_data)
+
+    with notebook.cell("Pipeline keys"):
+        rotation_data = add_pipeline_keys(input_adata)
+        print(rotation_data.reindex(["PC2", "PC10", "PC30"]))
 
     with notebook.cell("Projection"):
         umap_adata = anndata.AnnData(obs=pandas.DataFrame(index=input_adata.obs_names), obsm={"X_input": sklearn.preprocessing.normalize(glue_embedding)})
