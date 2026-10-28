@@ -178,13 +178,13 @@ Output/05_PCA/Figures:
 	mkdir -p $@
 
 Output/05_PCA/%.hdf5: Python/calculate_pca.py Output/04_Highly_variable_genes/%.hdf5 | Output/05_PCA
-	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --pcs 50 --sketch-column 'has_pca' $(LOGGING_TEE)
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --pcs 50 --sketch-column 'has_pca' $(LOGGING)
 
 Output/05_PCA/%.Compare.hdf5: Python/calculate_joint_pca.py Output/04_Highly_variable_genes/%.hdf5 Output/04_Highly_variable_genes/McGregor2025_scRNA_all.01_Seurat.hdf5 | Output/05_PCA
-	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --pcs 50 --sketch-column 'has_pca' $(LOGGING_TEE)
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --pcs 50 --sketch-column 'has_pca' $(LOGGING)
 
 Output/05_PCA/%.GLUE.hdf5: Python/calculate_glue_integration.py Output/04_Highly_variable_genes/%.hdf5 Output/04_Highly_variable_genes/McGregor2025_scRNA_all.01_Seurat.hdf5 Python/calculate_joint_pca.py | Output/05_PCA
-	$(SLURM) $(GPUS) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $(word 3,$^) $@) --sketch-column 'has_pca' $(LOGGING_TEE)
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $(word 3,$^) $@) --sketch-column 'has_pca' $(LOGGING)
 
 Output/05_PCA/Figures/%.zip: Python/draw_pca.py Output/05_PCA/%.hdf5 | Output/05_PCA/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
