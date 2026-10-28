@@ -1,6 +1,3 @@
-"""
-step00.py: Basement for everything
-"""
 import sys
 import typing
 import matplotlib.patches
