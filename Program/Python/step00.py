@@ -44,6 +44,7 @@ connectivity_key = f"{spatial_key}_connectivities"
 neighborhood_column = "Neighborhood"
 niche_column = "X_niche"
 omics_column = "Omics"
+glue_column = "X_glue"
 
 rest_value = "Rest"
 rest_color = "lightgray"
@@ -157,4 +158,3 @@ def evaluate_confusion_matrix(confusion_matrix: numpy.ndarray) -> typing.Dict[st
     answer["Threat score"] = true_positive / (true_positive + false_negative + false_positive)
     answer["Fowlkes–Mallows index"] = numpy.sqrt(answer["Positive predictive value"] * answer["Sensitivity"])
     return answer
-
