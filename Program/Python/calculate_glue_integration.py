@@ -172,7 +172,7 @@ if __name__ == "__main__":
             glue = scglue.models.fit_SCGLUE(train_dict, guidance_hvf, init_kws={"latent_dim": args.latent_dim, "random_seed": 42}, fit_kws=fit_kws)
         glue.save(f"{os.path.splitext(args.output)[0]}.dill")
 
-    with notebook.cell("Encode", "Cell embeddings for every cell, feature embeddings for the HVF genes, and a shared-gene metacell consistency on the training cells (NEW ANALYSIS; not the scglue score)."):
+    with notebook.cell("Encode"):
         glue_embedding = numpy.zeros((input_adata.n_obs, args.latent_dim), dtype=numpy.float64)
 
         for omics, adata in tqdm.tqdm(modality_dict.items(), total=len(modality_dict)):
@@ -185,14 +185,14 @@ if __name__ == "__main__":
         consistency_data = shared_gene_consistency(glue_embedding[train_mask], omics_array[train_mask], scipy.sparse.csr_matrix(input_adata.X)[train_mask][:, feature_mask])
         print(consistency_data)
 
-    with notebook.cell("Projection", "UMAP on L2-normalised X_glue (same neighbour order as the cosine metric of the GLUE tutorial)."):
+    with notebook.cell("Projection"):
         umap_adata = anndata.AnnData(obs=pandas.DataFrame(index=input_adata.obs_names), obsm={"X_input": sklearn.preprocessing.normalize(glue_embedding)})
         rapids_singlecell.pp.neighbors(umap_adata, use_rep="X_input", algorithm="brute", random_state=42)
         rapids_singlecell.tl.umap(umap_adata, random_state=42)
-        input_adata.obsm[step00.projection_key] = to_numpy(umap_adata.obsm[step00.projection_key]).astype(numpy.float64)
+        input_adata.obsm[step00.projection_key] = to_numpy(umap_adata.obsm["X_umap"]).astype(numpy.float64)
         del umap_adata
 
-    with notebook.cell("Mixing", "Fraction of the 30 nearest neighbours from the other Omics; Expected = value under complete mixing."):
+    with notebook.cell("Mixing"):
         mixing_data = omics_mixing({"GLUE": sklearn.preprocessing.normalize(glue_embedding)}, omics_array, args.mixing_cells)
         print(mixing_data)
 
