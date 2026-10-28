@@ -46,7 +46,7 @@ if __name__ == "__main__":
 
         with notebook.cell("Scatter"):
             fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
-            seaborn.scatterplot(data=projection_data, x=step00.projection_columns[0], y=step00.projection_columns[1], hue=step00.omics_column, legend="brief", rasterized=True, s=5, edgecolor=None, ax=ax)
+            seaborn.scatterplot(data=projection_data, x=step00.projection_columns[0], y=step00.projection_columns[1], hue=step00.omics_column, hue_order=["Xenium", "scRNA"], style=step00.omics_column, legend="brief", rasterized=True, s=5, edgecolor=None, ax=ax)
 
             ax.set_xticklabels([])
             ax.set_yticklabels([])
