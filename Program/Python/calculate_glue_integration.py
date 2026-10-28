@@ -85,14 +85,11 @@ if __name__ == "__main__":
     parser.add_argument("output", help="Output HDF5 file", type=str)
     parser.add_argument("--sketch-column", help="Boolean obs column with the training cells in both datasets (e.g. has_pca); uniform sample per sample if omitted", type=str, default=None)
     parser.add_argument("--sketch-cells", help="Training cells per sample without --sketch-column", type=int, default=5000)
-    parser.add_argument("--exclude-genes", help="Genes removed before integration (one per line, e.g. CRISPRclean targets)", type=str, default="")
     parser.add_argument("--pcs", help="PCs per modality used as GLUE encoder input (GLUE tutorial: 100)", type=int, default=100)
     parser.add_argument("--latent-dim", help="GLUE latent dimensions (GLUE default: 50)", type=int, default=50)
-    parser.add_argument("--batch-column", help="obs column used as GLUE decoder batch (empty: none)", type=str, default=step00.sample_column)
     parser.add_argument("--max-epochs", help="GLUE max_epochs (0: GLUE automatic value)", type=int, default=0)
     parser.add_argument("--encode-batch", help="Cells per batch when encoding all cells", type=int, default=4096)
     parser.add_argument("--xenium-label", help="Xenium obs column for the figure", type=str, default="CellAnnotation.Level0")
-    parser.add_argument("--scrna-label", help="scRNA obs column for the figure", type=str, default=step00.celltype_column)
     parser.add_argument("--mixing-cells", help="Random cells for the Omics mixing table", type=int, default=50000)
     parser.add_argument("--chunk", help="Cells per projection chunk", type=int, default=20000)
 
@@ -106,14 +103,13 @@ if __name__ == "__main__":
 
     with notebook.cell("Merge"):
         adata_dict = {"Xenium": scanpy.read_h5ad(args.xenium), "scRNA": scanpy.read_h5ad(args.scrna)}
-        label_dict = {"Xenium": args.xenium_label, "scRNA": args.scrna_label}
+        label_dict = {"Xenium": args.xenium_label, "scRNA": step00.celltype_column}
 
         for name, adata in tqdm.tqdm(adata_dict.items(), total=len(adata_dict)):
             print(name, adata)
 
-        excluded_genes = set(pandas.read_csv(args.exclude_genes, header=None).iloc[:, 0].astype(str)) if args.exclude_genes else set()
         label_values = {omics: adata.obs[label_dict[omics]].astype(str).to_numpy() for omics, adata in adata_dict.items() if label_dict[omics] in adata.obs.columns}
-        input_adata = merge_omics(adata_dict, excluded_genes)
+        input_adata = merge_omics(adata_dict)
         del adata_dict
 
         input_adata.X = input_adata.X.astype(numpy.float64)
@@ -154,10 +150,10 @@ if __name__ == "__main__":
         for omics in tqdm.tqdm(["Xenium", "scRNA"]):
             rows = numpy.flatnonzero(omics_array == omics)
             obs = pandas.DataFrame(index=input_adata.obs_names[rows])
-            if args.batch_column:
-                obs[args.batch_column] = input_adata.obs[args.batch_column].astype(str).to_numpy()[rows]
+            if step00.sample_column:
+                obs[step00.sample_column] = input_adata.obs[step00.sample_column].astype(str).to_numpy()[rows]
             modality_dict[omics] = anndata.AnnData(X=scipy.sparse.csr_matrix(input_adata.X[rows]), obs=obs, var=input_adata.var[["highly_variable"]].copy(), obsm={step00.pca_key: pca_embedding[rows]})
-            scglue.models.configure_dataset(modality_dict[omics], "NB", use_highly_variable=True, use_rep="X_pca", use_batch=(args.batch_column or None))
+            scglue.models.configure_dataset(modality_dict[omics], "NB", use_highly_variable=True, use_rep="X_pca", use_batch=(step00.sample_column or None))
 
         guidance = networkx.MultiDiGraph()
         guidance.add_edges_from([(gene, gene, {"weight": 1.0, "sign": 1, "type": "self"}) for gene in input_adata.var_names])
