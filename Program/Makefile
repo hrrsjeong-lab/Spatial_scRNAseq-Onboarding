@@ -9,6 +9,7 @@ MEM_PER_CPU = $(shell echo '$(MEMS)/$(CPUS)' | bc)
 SLURM = srun --chdir=$(abspath .) --cpus-per-task=$(CPUS) --export=ALL --job-name="$(PROJECT)_$(@F)" --mem=$(MEMS)G --mail-user="jaewoong@gist.ac.kr" --mail-type=FAIL
 GPUS = --gpus=1
 PYTHON = /home/Live/jaewoong/Spatial_scRNAseq-Onboarding/.venv/bin/python3 -B -u -X faulthandler
+#PYTHON = /usr/bin/env PYTHONWARNINGS="ignore:The pynvml package is deprecated:FutureWarning" /home/Live/jaewoong/Spatial_scRNAseq-Onboarding/.venv/bin/python3 -B -u -X faulthandler
 R = /usr/bin/env RENV_CONFIG_SYNCHRONIZED_CHECK=FALSE /usr/bin/Rscript
 rwildcard = $(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(subst *,%,$2),$d))
 product = $(foreach x,$1,$(addprefix $x.,$2))
@@ -26,8 +27,8 @@ PROJECTIONS = 01_umap 02_tsne 03_phate 04_trimap
 CLUSTERINGS = 01_Leiden 02_Louvain
 CELLTYPES = 07_CRC 08_Crohn 09_McGregor2025_scRNA_all 10_McGregor2025_Xenium480
 
-SEURAT_K = 20
-SEURAT_PRUNE = 0.0666666667
+SEURAT_K = 30
+SEURAT_PRUNE = 0.067
 SEURAT_RESOLUTION = 0.7
 TRANSFER_K = 50
 
@@ -44,7 +45,6 @@ EVALUATE_INGEST_REFERENCE = 01_umap.02_Louvain.09_McGregor2025_scRNA_all
 MCGREGOR_LINEAGE_COLUMN = CellAnnotation.Level0
 MCGREGOR_SUBTYPE_COLUMN = CellAnnotation.Level3
 MCGREGOR_GROUP_COLUMN = TYPE
-MCGREGOR_SUBSET_PATTERN = (?i)fibroblast|^FAS
 MCGREGOR_SECTIONS =
 
 # Options
@@ -167,7 +167,7 @@ Output/04_Highly_variable_genes/Figures/%.Compare.zip: Python/compare_variable_g
 
 step04-test: Output/04_Highly_variable_genes/Test.01_Seurat.hdf5 Output/04_Highly_variable_genes/Figures/Test.01_Seurat.zip Output/04_Highly_variable_genes/McGregor2025_scRNA_all.01_Seurat.hdf5 Output/04_Highly_variable_genes/Figures/McGregor2025_scRNA_all.01_Seurat.zip Output/04_Highly_variable_genes/Figures/Test.01_Seurat.Compare.zip
 step04-optimal: Output/04_Highly_variable_genes/$(OPTIMAL).01_Seurat.hdf5 Output/04_Highly_variable_genes/Figures/$(OPTIMAL).01_Seurat.zip Output/04_Highly_variable_genes/McGregor2025_scRNA_all.01_Seurat.hdf5 Output/04_Highly_variable_genes/Figures/McGregor2025_scRNA_all.01_Seurat.zip
-step04: $(addprefix Output/04_Highly_variable_genes/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(DEGS)))) $(addprefix Output/04_Highly_variable_genes/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(DEGS))))
+step04: $(addprefix Output/04_Highly_variable_genes/$(OPTIMAL).,$(addsuffix,.hdf5,$(DEGS))) $(addprefix, Output/04_Highly_variable_genes/Figures/$(OPTIMAL).,$(addsuffix .zip,$(DEGS))) $(addprefix Output/04_Highly_variable_genes/McGregor2025_scRNA_all.,$(addsuffix .hdf5,$(DEGS))) $(addprefix Output/04_Highly_variable_genes/Figures/McGregor2025_scRNA_all.,$(addsuffix .zip,$(DEGS)))
 .PHONY: step04-test step04-optimal step04
 
 # Step 05 (PCA)
@@ -178,17 +178,20 @@ Output/05_PCA/Figures:
 	mkdir -p $@
 
 Output/05_PCA/%.hdf5: Python/calculate_pca.py Output/04_Highly_variable_genes/%.hdf5 | Output/05_PCA
-	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --pcs 50 --sketch-column 'has_pca' $(LOGGING)
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --pcs 50 --sketch-column 'has_pca' $(LOGGING_TEE)
 
 Output/05_PCA/%.Compare.hdf5: Python/calculate_joint_pca.py Output/04_Highly_variable_genes/%.hdf5 Output/04_Highly_variable_genes/McGregor2025_scRNA_all.01_Seurat.hdf5 | Output/05_PCA
-	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --pcs 50 --sketch-column 'has_pca' $(LOGGING)
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --pcs 50 --sketch-column 'has_pca' $(LOGGING_TEE)
+
+Output/05_PCA/%.GLUE.hdf5: Python/calculate_glue_integration.py Output/04_Highly_variable_genes/%.hdf5 Output/04_Highly_variable_genes/McGregor2025_scRNA_all.01_Seurat.hdf5 Python/calculate_joint_pca.py | Output/05_PCA
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $(word 3,$^) $@) --sketch-column 'has_pca' $(LOGGING_TEE)
 
 Output/05_PCA/Figures/%.zip: Python/draw_pca.py Output/05_PCA/%.hdf5 | Output/05_PCA/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-step05-test: Output/05_PCA/Test.01_Seurat.hdf5 Output/05_PCA/Figures/Test.01_Seurat.zip Output/05_PCA/Test.01_Seurat.Compare.hdf5
-step05-optimal: Output/05_PCA/$(OPTIMAL).01_Seurat.hdf5 Output/05_PCA/Figures/$(OPTIMAL).01_Seurat.zip Output/05_PCA/$(OPTIMAL).01_Seurat.Compare.hdf5
-step05: $(addprefix Output/05_PCA/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(DEGS)))) $(addprefix Output/05_PCA/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(DEGS))))
+step05-test: Output/05_PCA/Test.01_Seurat.hdf5 Output/05_PCA/Figures/Test.01_Seurat.zip Output/05_PCA/Test.01_Seurat.Compare.hdf5 Output/05_PCA/Figures/Test.01_Seurat.Compare.zip Output/05_PCA/Test.01_Seurat.GLUE.hdf5 Output/05_PCA/Figures/Test.01_Seurat.GLUE.zip
+step05-optimal: Output/05_PCA/$(OPTIMAL).01_Seurat.hdf5 Output/05_PCA/Figures/$(OPTIMAL).01_Seurat.zip Output/05_PCA/$(OPTIMAL).01_Seurat.Compare.hdf5 Output/05_PCA/Figures/$(OPTIMAL).01_Seurat.Compare.zip Output/05_PCA/$(OPTIMAL).01_Seurat.GLUE.hdf5 Output/05_PCA/Figures/$(OPTIMAL).01_Seurat.GLUE.zip
+step05: step05-test step05-optimal
 .PHONY: step05-test step05-optimal step05
 
 # Step 06 (Dimensional reduction)
@@ -215,7 +218,7 @@ Output/06_Dimensional_reduction/Figures/%.zip: Python/compare_projection_omics.p
 
 step06-test: Output/06_Dimensional_reduction/Test.01_Seurat.01_umap.hdf5 Output/06_Dimensional_reduction/Test.01_Seurat.Compare.01_umap.hdf5 Output/06_Dimensional_reduction/Figures/Test.01_Seurat.Compare.01_umap.zip
 step06-optimal: Output/06_Dimensional_reduction/$(OPTIMAL).01_Seurat.01_umap.hdf5 Output/06_Dimensional_reduction/$(OPTIMAL).01_Seurat.Compare.01_umap.hdf5 Output/06_Dimensional_reduction/Figures/$(OPTIMAL).01_Seurat.Compare.01_umap.zip
-step06: $(addprefix Output/06_Dimensional_reduction/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(call product,$(DEGS),$(PROJECTIONS)))))
+step06:
 .PHONY: step06-test step06-optimal step06
 
 # Step 07 (Clustering)
