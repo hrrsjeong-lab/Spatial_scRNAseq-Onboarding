@@ -25,7 +25,7 @@ OPTIMAL = Crohn
 DEGS = 01_Seurat 02_Cell_ranger
 PROJECTIONS = 01_umap 02_tsne 03_phate 04_trimap
 CLUSTERINGS = 01_Leiden 02_Louvain
-CELLTYPES = 07_CRC 08_Crohn 09_McGregor2025_scRNA_all 10_McGregor2025_Xenium480
+CELLTYPES = 09_McGregor2025_scRNA_all 10_McGregor2025_Xenium480
 
 SEURAT_K = 30
 SEURAT_PRUNE = 0.067
@@ -167,7 +167,7 @@ Output/04_Highly_variable_genes/Figures/%.Compare.zip: Python/compare_variable_g
 
 step04-test: Output/04_Highly_variable_genes/Test.01_Seurat.hdf5 Output/04_Highly_variable_genes/Figures/Test.01_Seurat.zip Output/04_Highly_variable_genes/McGregor2025_scRNA_all.01_Seurat.hdf5 Output/04_Highly_variable_genes/Figures/McGregor2025_scRNA_all.01_Seurat.zip Output/04_Highly_variable_genes/Figures/Test.01_Seurat.Compare.zip
 step04-optimal: Output/04_Highly_variable_genes/$(OPTIMAL).01_Seurat.hdf5 Output/04_Highly_variable_genes/Figures/$(OPTIMAL).01_Seurat.zip Output/04_Highly_variable_genes/McGregor2025_scRNA_all.01_Seurat.hdf5 Output/04_Highly_variable_genes/Figures/McGregor2025_scRNA_all.01_Seurat.zip
-step04: $(addprefix Output/04_Highly_variable_genes/$(OPTIMAL).,$(addsuffix,.hdf5,$(DEGS))) $(addprefix, Output/04_Highly_variable_genes/Figures/$(OPTIMAL).,$(addsuffix .zip,$(DEGS))) $(addprefix Output/04_Highly_variable_genes/McGregor2025_scRNA_all.,$(addsuffix .hdf5,$(DEGS))) $(addprefix Output/04_Highly_variable_genes/Figures/McGregor2025_scRNA_all.,$(addsuffix .zip,$(DEGS)))
+step04: $(addprefix Output/04_Highly_variable_genes/$(OPTIMAL).,$(addsuffix,.hdf5,$(DEGS))) $(addprefix, Output/04_Highly_variable_genes/Figures/$(OPTIMAL).,$(addsuffix .zip,$(DEGS)))
 .PHONY: step04-test step04-optimal step04
 
 # Step 05 (PCA)
@@ -239,7 +239,7 @@ Output/07_Clustering/Figures/%.zip: python/draw_clustering.py Output/07_Clusteri
 
 step07-test: Output/07_Clustering/Test.01_Seurat.01_umap.02_Louvain.hdf5 Output/07_Clustering/Figures/Test.01_Seurat.01_umap.02_Louvain.zip
 step07-optimal: Output/07_Clustering/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.hdf5 Output/07_Clustering/Figures/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.zip
-step07: $(addprefix Output/07_Clustering/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(CLUSTERINGS)))))) $(addprefix Output/07_Clustering/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(CLUSTERINGS))))))
+step07: $(addprefix Output/07_Clustering/$(OPTIMAL).01_Seurat.01_umap.,$(addsuffix .hdf5,$(CLUSTERINGS))) $(addprefix Output/07_Clustering/Figures/$(OPTIMAL).01_Seurat.01_umap.,$(addsuffix .zip,$(CLUSTERINGS)))
 .PHONY: step07-test step07-optimal step07
 
 # Step 08 (Marker genes)
@@ -313,10 +313,10 @@ Output/08_Marker_genes/%.07_CRC.hdf5: Python/select_marker_genes.py Output/07_Cl
 Output/08_Marker_genes/%.08_Crohn.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/08_Crohn.pkl
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-Output/08_Marker_genes/%.10_McGregor2025_Xenium480.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/10_McGregor2025_Xenium480.pkl
+Output/08_Marker_genes/%.09_McGregor2025_scRNA_all.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/09_McGregor2025_scRNA_all.pkl
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-Output/08_Marker_genes/%.09_McGregor2025_scRNA_all.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/09_McGregor2025_scRNA_all.pkl
+Output/08_Marker_genes/%.10_McGregor2025_Xenium480.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/10_McGregor2025_Xenium480.pkl
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 Output/08_Marker_genes/Figures/%.zip: Python/draw_marker_genes.py Output/08_Marker_genes/%.hdf5 | Output/08_Marker_genes/Figures
@@ -324,7 +324,7 @@ Output/08_Marker_genes/Figures/%.zip: Python/draw_marker_genes.py Output/08_Mark
 
 step08-test: Output/08_Marker_genes/References/09_McGregor2025_scRNA_all.pkl Output/08_Marker_genes/Test.01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.hdf5 Output/08_Marker_genes/Figures/Test.01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.zip
 step08-optimal: Output/08_Marker_genes/References/09_McGregor2025_scRNA_all.pkl Output/08_Marker_genes/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.hdf5 Output/08_Marker_genes/Figures/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.zip
-step08: $(addprefix Output/08_Marker_genes/References/,$(addsuffix .pkl,$(CELLTYPES))) $(addprefix Output/08_Marker_genes/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES))))))) $(addprefix Output/08_Marker_genes/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES)))))))
+step08: $(addprefix Output/08_Marker_genes/References/,$(addsuffix .pkl,$(CELLTYPES))) $(addprefix Output/08_Marker_genes/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.,$(addsuffix .hdf5,$(CELLTYPES))) $(addprefix Output/08_Marker_genes/Figures/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.,$(addsuffix .zip,$(CELLTYPES)))
 .PHONY: step08-test step08-optimal step08
 
 # Step 09 (Xenium)
@@ -336,7 +336,7 @@ Output/09_Xenium/Figures/%.zip: Python/draw_xenium_coordinates.py Output/08_Mark
 
 step09-test: Output/09_Xenium/Figures/Test.01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.zip
 step09-optimal: Output/09_Xenium/Figures/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.zip
-step09: $(addprefix Output/09_Xenium/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES)))))))
+step09:
 .PHONY: step09-test step09-optimal step09
 
 # Step 10 (Neighborhood enrichment)
@@ -354,7 +354,7 @@ Output/10_Neighborhood/Figures/%.zip: Python/draw_nhood_enrichment.py Output/10_
 
 step10-test: Output/10_Neighborhood/Test.01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.hdf5 Output/10_Neighborhood/Figures/Test.01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.zip
 step10-optimal: Output/10_Neighborhood/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.hdf5 Output/10_Neighborhood/Figures/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.zip
-step10: $(addprefix Output/10_Neighborhood/,$(addsuffix .hdf5,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES))))))) $(addprefix Output/10_Neighborhood/Figures/,$(addsuffix .zip,$(call product,$(CANCERS),$(call product,$(DEGS),$(call product,$(PROJECTIONS),$(call product,$(CLUSTERINGS),$(CELLTYPES)))))))
+step10:
 .PHONY: step10-test step10-optimal step10
 
 # Step 11 (Evaluate celltype)
@@ -378,7 +378,7 @@ Output/11_Evaluate_celltype/Figures/%.zip: Python/draw_evaluate_marker_genes.py 
 
 step11-test: Output/08_Marker_genes/References/McGregor2025_Xenium480_Level0_markers.tsv Output/11_Evaluate_celltype/Test.01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.hdf5 Output/11_Evaluate_celltype/Figures/Test.01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.zip
 step11-optimal: Output/08_Marker_genes/References/McGregor2025_Xenium480_Level0_markers.tsv Output/11_Evaluate_celltype/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.hdf5 Output/11_Evaluate_celltype/Figures/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.zip
-step11: step11-test step11-optimal
+step11:
 .PHONY: step11-test step11-optimal step11
 
 # Step 12 (McGregor 2025 Extended Data Fig. 10)
@@ -399,7 +399,7 @@ Output/12_McGregor_figures/Figures/%.ED10.zip: Python/draw_mcgregor_extended_dat
 
 step12-test: Output/12_McGregor_figures/Test.pseudobulk.hdf5 Output/12_McGregor_figures/Test.fibroblasts.hdf5 Output/12_McGregor_figures/Figures/Test.ED10.zip
 step12-optimal: Output/12_McGregor_figures/$(OPTIMAL).pseudobulk.hdf5 Output/12_McGregor_figures/$(OPTIMAL).fibroblasts.hdf5 Output/12_McGregor_figures/Figures/$(OPTIMAL).ED10.zip
-step12: step12-test step12-optimal
+step12:
 .PHONY: step12-test step12-optimal step12
 
 # Step 13 (Cell type prediction with ingest)
@@ -417,7 +417,7 @@ Output/13_Ingest/Figures/%.zip: Python/draw_marker_genes_2.py Output/13_Ingest/%
 
 step13-test: Output/13_Ingest/Test.01_Seurat.hdf5 Output/13_Ingest/Figures/Test.01_Seurat.zip
 step13-optimal: Output/13_Ingest/$(OPTIMAL).01_Seurat.hdf5 Output/13_Ingest/Figures/$(OPTIMAL).01_Seurat.zip
-step13: step13-test step13-optimal
+step13:
 .PHONY: step13-test step13-optimal step13
 
 # Step 14 (Evaluate ingest)
@@ -435,5 +435,5 @@ Output/14_Evaluate_ingest/Figures/%.zip: Python/draw_evaluate_marker_genes.py Ou
 
 step14-test: Output/14_Evaluate_ingest/Test.01_Seurat.hdf5 Output/14_Evaluate_ingest/Figures/Test.01_Seurat.zip
 step14-optimal: Output/14_Evaluate_ingest/$(OPTIMAL).01_Seurat.hdf5 Output/14_Evaluate_ingest/Figures/$(OPTIMAL).01_Seurat.zip
-step14: step14-test step14-optimal
+step14:
 .PHONY: step14-test step14-optimal step14
