@@ -20,7 +20,7 @@ def to_numpy(array) -> numpy.ndarray:
 def merge_omics(adata_dict: dict[str, anndata.AnnData]) -> anndata.AnnData:
     first_adata = next(iter(adata_dict.values()))
     expressed_list = [set(adata.var_names[numpy.asarray(adata.X.sum(axis=0)).ravel() > 0]) for adata in adata_dict.values()]
-    shared_genes = pandas.Index([gene for gene in first_adata.var_names if all(gene in expressed for expressed in expressed_list) and (gene not in excluded_genes)])
+    shared_genes = pandas.Index([gene for gene in first_adata.var_names if all(gene in expressed for expressed in expressed_list)])
     variable_genes = set().union(*[adata.var_names[adata.var["highly_variable"].to_numpy(dtype=bool)] for adata in adata_dict.values()])
 
     joint_dict = dict()
