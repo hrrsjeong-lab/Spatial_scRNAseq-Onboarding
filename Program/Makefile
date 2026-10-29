@@ -52,7 +52,7 @@ LOGGING = 1>$(abspath $@).log 2>&1
 LOGGING_DIR = 1>$(abspath $(@D)).log 2>&1
 LOGGING_TEE = 2>&1 | tee $(abspath $@).log
 
-all: step00 test optimal step01 step02 step03 step04 step05 step06 step07 step08 step09 step10 step11 step12
+all: step00 test optimal step01 step02 step03 step04 step05 step06 step07 step08 step09 step10 step11 step12 step13
 	@date | mail -s "[$(PROJECT)] Making $@ has been finished on $(shell hostname)" "jaewoong@gist.ac.kr"
 .PHONY: all
 
@@ -409,15 +409,18 @@ Output/13_Ingest:
 Output/13_Ingest/Figures:
 	mkdir -p $@
 
-Output/13_Ingest/%.hdf5: Python/predict_celltype_ingest.py Output/05_PCA/%.Compare.hdf5 Output/00_Authors/McGregor2025_scRNA_all.hdf5 Output/04_Highly_variable_genes/%.hdf5 | Output/13_Ingest
-	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $(word 3,$^) $@) --truth $(abspath $(word 4,$^)) --truth-column "$(EVALUATE_TRUE_COLUMN)" --umap $(LOGGING)
+Output/13_Ingest/%.Level0.hdf5: Python/predict_celltype_ingest.py Output/05_PCA/%.GLUE.hdf5 Output/00_Authors/McGregor2025_scRNA_all.hdf5 Output/04_Highly_variable_genes/%.hdf5 | Output/13_Ingest
+	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $(word 3,$^) $@) --truth $(abspath $(word 4,$^)) --truth-column "$(EVALUATE_TRUE_COLUMN)" --umap $(LOGGING_TEE)
+
+Output/13_Ingest/%.Level3.hdf5: Python/predict_celltype_ingest.py Output/05_PCA/%.GLUE.hdf5 Output/00_Authors/McGregor2025_scRNA_all.hdf5 Output/04_Highly_variable_genes/%.hdf5 | Output/13_Ingest
+	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $(word 3,$^) $@) --truth $(abspath $(word 4,$^)) --truth-column "$(EVALUATE_FINE_COLUMN)" --umap $(LOGGING_TEE)
 
 Output/13_Ingest/Figures/%.zip: Python/draw_marker_genes_2.py Output/13_Ingest/%.hdf5 | Output/13_Ingest/Figures
-	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
+	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING_TEE)
 
-step13-test: Output/13_Ingest/Test.01_Seurat.hdf5 Output/13_Ingest/Figures/Test.01_Seurat.zip
-step13-optimal: Output/13_Ingest/$(OPTIMAL).01_Seurat.hdf5 Output/13_Ingest/Figures/$(OPTIMAL).01_Seurat.zip
-step13:
+step13-test: Output/13_Ingest/Test.01_Seurat.Level0.hdf5 Output/13_Ingest/Figures/Test.01_Seurat.Level0.zip
+step13-optimal: Output/13_Ingest/$(OPTIMAL).01_Seurat.Level0.hdf5 Output/13_Ingest/Figures/$(OPTIMAL).01_Seurat.Level0.zip
+step13:Output/13_Ingest/$(OPTIMAL).01_Seurat.Level3.hdf5 Output/13_Ingest/Figures/$(OPTIMAL).01_Seurat.Level3.zip
 .PHONY: step13-test step13-optimal step13
 
 # Step 14 (Evaluate ingest)
