@@ -42,6 +42,7 @@ neighborhood_column = "Neighborhood"
 niche_column = "X_niche"
 omics_column = "Omics"
 glue_column = "X_glue"
+ingest_column = "X_ingest"
 
 rest_value = "Rest"
 rest_color = "lightgray"
