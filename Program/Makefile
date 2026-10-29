@@ -207,6 +207,7 @@ Output/06_Dimensional_reduction/%.01_umap.hdf5: Python/calculate_umap.py Output/
 Output/06_Dimensional_reduction/%.02_tsne.hdf5: Python/calculate_tsne.py Output/05_PCA/%.hdf5 | Output/06_Dimensional_reduction
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) $(LOGGING)
 
+Output/06_Dimensional_reduction/%.03_phate.hdf5: MEMS = 200
 Output/06_Dimensional_reduction/%.03_phate.hdf5: Python/calculate_phate.py Output/05_PCA/%.hdf5 | Output/06_Dimensional_reduction
 	$(SLURM) $(PYTHON) $(abspath $^ $@) --cpus $(CPUS) $(LOGGING)
 
