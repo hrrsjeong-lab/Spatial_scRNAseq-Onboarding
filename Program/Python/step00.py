@@ -1,5 +1,7 @@
 import sys
 import typing
+import anndata.io
+import h5py
 import matplotlib.patches
 import matplotlib.patheffects
 import matplotlib.transforms
@@ -156,3 +158,16 @@ def evaluate_confusion_matrix(confusion_matrix: numpy.ndarray) -> typing.Dict[st
     answer["Threat score"] = true_positive / (true_positive + false_negative + false_positive)
     answer["Fowlkes–Mallows index"] = numpy.sqrt(answer["Positive predictive value"] * answer["Sensitivity"])
     return answer
+
+
+def read_projection(filename: str) -> pandas.DataFrame:
+    with h5py.File(filename, "r") as handle:
+        names = pandas.Index(numpy.asarray(anndata.io.read_elem(handle["obs"][handle["obs"].attrs["_index"]])).astype(str))
+        return pandas.DataFrame(numpy.asarray(handle["obsm"][projection_key], dtype=numpy.float64), index=names, columns=list(projection_columns))
+
+
+def align_projection(projection_data: pandas.DataFrame, names: pandas.Index, suffix: str) -> pandas.DataFrame:
+    names = pandas.Index(names).astype(str)
+    tagged = projection_data.loc[projection_data.index.str.endswith(suffix)]
+    candidate_list = [projection_data.reindex(names), projection_data.reindex(names.str.removesuffix(suffix)).set_axis(names), tagged.set_axis(tagged.index.str.removesuffix(suffix)).reindex(names)]
+    return max(candidate_list, key=lambda data: int(data.notna().all(axis=1).sum()))
