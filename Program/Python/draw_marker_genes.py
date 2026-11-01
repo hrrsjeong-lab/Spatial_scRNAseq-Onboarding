@@ -23,11 +23,14 @@ if __name__ == "__main__":
 
     parser.add_argument("input", help="INPUT hdf5 file", type=str)
     parser.add_argument("output", help="Output ZIP file", type=str)
+    parser.add_argument("--projection", help="HDF5 file whose obsm X_projection replaces the coordinates of the input (e.g. the joint step 06 UMAP used by the step 06 and step 13 figures; '': input X_projection)", type=str, default="")
 
     args = parser.parse_args()
 
     step00.check_suffix(args.input, {".hdf5", ".h5"})
     step00.check_suffix(args.output, {".zip"})
+    if args.projection:
+        step00.check_suffix(args.projection, {".hdf5", ".h5"})
 
     input_adata = scanpy.read_h5ad(args.input)
     print(input_adata)
@@ -44,6 +47,14 @@ if __name__ == "__main__":
     for column in tqdm.tqdm([step00.clustering_column, step00.sample_column]):
         clustering_data[column] = input_adata.obs[column]
     print(clustering_data)
+
+    if args.projection:
+        projection_data = step00.align_projection(step00.read_projection(args.projection), clustering_data.index, "-Xenium")
+        found = projection_data.notna().all(axis=1).to_numpy()
+        print("Projection:", args.projection, "| cells found:", int(found.sum()), "of", clustering_data.shape[0])
+        if not found.all():
+            raise ValueError(f"{int((~found).sum())} cells have no {step00.projection_key} in {args.projection}!!")
+        clustering_data[list(step00.projection_columns)] = projection_data.to_numpy()
 
     gene_list = sorted(set().union(*input_adata.uns[step00.marker_column].values()))
     print("Gene:", len(gene_list))
