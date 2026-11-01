@@ -173,27 +173,33 @@ if __name__ == "__main__":
         fig.savefig(figure_list[-1])
         matplotlib.pyplot.close(fig)
 
-        for cluster in tqdm.tqdm(cluster_list):
+        n_columns = 4
+        n_rows = -(-len(cluster_list) // n_columns)
+        projection_values = clustering_data[list(step00.projection_columns)].to_numpy(dtype=numpy.float64)
+        point_size = float(numpy.clip(2e5 / projection_values.shape[0], 1, 5))
+
+        fig, axes = matplotlib.pyplot.subplots(nrows=n_rows, ncols=n_columns, figsize=(6 * n_columns, 6 * n_rows), sharex=True, sharey=True, squeeze=False)
+        for ax, cluster in tqdm.tqdm(zip(axes.flat, cluster_list), total=len(cluster_list)):
             cell_type = sorted(zip(cluster_score_data.loc[cluster, :], marker_cell_type_list))[-1][1]
             mask = (clustering_data[step00.clustering_column] == cluster).to_numpy()
 
-            fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
+            ax.scatter(projection_values[:, 0], projection_values[:, 1], color=step00.rest_color, s=point_size, linewidths=0, rasterized=True)
+            ax.scatter(projection_values[mask, 0], projection_values[mask, 1], color=cell_type_palette[cell_type], s=point_size, linewidths=0, rasterized=True)
+            ax.set_title(f"#{cluster}: {cell_type} ({cluster_score_data.loc[cluster, cell_type]:.2f})", fontsize="xx-small")
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.grid(False)
 
-            seaborn.scatterplot(data=clustering_data, x=step00.projection_columns[0], y=step00.projection_columns[1], hue=cell_type, palette="Reds", hue_norm=matplotlib.colors.Normalize(vmin=0, vmax=max(clustering_data[cell_type])), rasterized=True, legend=False, s=5, ax=ax)
-            step00.confidence_ellipse(clustering_data.loc[mask, step00.projection_columns[0]], clustering_data.loc[mask, step00.projection_columns[1]], ax=ax, edgecolor="black", linewidth=2.5)
-            ax.text(numpy.mean(clustering_data.loc[mask, step00.projection_columns[0]]), numpy.mean(clustering_data.loc[mask, step00.projection_columns[1]]), cluster, horizontalalignment="center", verticalalignment="center", fontsize="medium", color="black", path_effects=step00.path_effects)
+        for ax in axes.flat[len(cluster_list):]:
+            ax.set_axis_off()
+        seaborn.despine(fig=fig)
+        fig.tight_layout()
 
-            ax.set_xticklabels([])
-            ax.set_yticklabels([])
-            ax.set_title(f"{cell_type} with Cluster #{cluster}", fontsize="small")
-            fig.tight_layout()
-
-            figure_list.append(f"{directory}/Cluster-{cluster}.pdf")
-            fig.savefig(figure_list[-1])
-            figure_list.append(f"{directory}/Cluster-{cluster}.png")
-            fig.savefig(figure_list[-1])
-            matplotlib.pyplot.close(fig)
-
+        figure_list.append(f"{directory}/Cluster-Panels.pdf")
+        fig.savefig(figure_list[-1])
+        figure_list.append(f"{directory}/Cluster-Panels.png")
+        fig.savefig(figure_list[-1])
+        matplotlib.pyplot.close(fig)
         fig, ax = matplotlib.pyplot.subplots(figsize=(18, 18))
 
         seaborn.scatterplot(data=clustering_data, x=step00.projection_columns[0], y=step00.projection_columns[1], hue=step00.celltype_column, hue_order=cell_type_list, palette=cell_type_palette, rasterized=True, s=5, edgecolor=None, linewidth=0, ax=ax)
@@ -204,7 +210,7 @@ if __name__ == "__main__":
 
         ax.set_xticklabels([])
         ax.set_yticklabels([])
-        matplotlib.pyplot.legend(loc="lower left", title=f"{step00.celltype_column} (n={len(cell_type_list)})", title_fontsize="xx-small", markerscale=10)
+        matplotlib.pyplot.legend(loc="best", title=f"{step00.celltype_column} (n={len(cell_type_list)})", title_fontsize="xx-small", markerscale=10)
         matplotlib.pyplot.tight_layout()
 
         figure_list.append(f"{directory}/Scatter-{step00.celltype_column}.pdf")
