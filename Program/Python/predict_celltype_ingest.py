@@ -5,16 +5,17 @@ import h5py
 import numpy
 import pandas
 import scanpy
+import tqdm
 import notebook_pdf
 import step00
 
 
 def read_obs_column(path: str, column: str, names: pandas.Index, suffix: str) -> pandas.Series:
-    # obs[column] of another HDF5 file, aligned to names; anndata.concat(index_unique="-") adds f"-{Omics}" to the names
     with h5py.File(path, "r") as handle:
         obs = anndata.io.read_elem(handle["obs"])
 
     assert (column in obs.columns), f"{column} not in obs of {path}: {list(obs.columns)}"
+
     values = obs[column].astype(object).reindex(names)
     if values.isna().all():
         values = obs[column].astype(object).reindex(names.str.removesuffix(suffix))
@@ -24,7 +25,7 @@ def read_obs_column(path: str, column: str, names: pandas.Index, suffix: str) ->
 
 def knn_vote(indices: numpy.ndarray, codes: numpy.ndarray, n_labels: int) -> tuple[numpy.ndarray, numpy.ndarray]:
     neighbor_codes = codes[indices]
-    counts = numpy.stack([(neighbor_codes == code).sum(axis=1) for code in range(n_labels)], axis=1)
+    counts = numpy.stack([(neighbor_codes == code).sum(axis=1) for code in tqdm.trange(n_labels)], axis=1)
     best = counts.argmax(axis=1)
     return best, counts[numpy.arange(best.size), best] / indices.shape[1]
 
@@ -51,15 +52,16 @@ if __name__ == "__main__":
     step00.check_suffix(args.output, {".hdf5", ".h5"})
     if args.truth:
         step00.check_suffix(args.truth, {".hdf5", ".h5", ".h5ad"})
-    
-    assert ((0.0 <= args.min_fraction <= 1.0) and (0.0 <= args.distance_quantile < 1.0)), "--min-fraction must be in [0, 1] and --distance-quantile in [0, 1)"
+
+    assert (0.0 <= args.min_fraction <= 1.0), "--min-fraction must be in [0, 1]"
+    assert (0.0 <= args.distance_quantile < 1.0), "--distance-quantile in [0, 1)"
 
     notebook = notebook_pdf.Notebook(title="Predict cell types with ingest", script=__file__)
     predicted_column = f"{args.label}_ingest"
     fraction_column = f"{args.label}_ingest_fraction"
     distance_column = f"{args.label}_ingest_distance"
 
-    with notebook.cell("Read", "Only obs and the joint Harmony embedding are read; the expression matrix is not needed."):
+    with notebook.cell("Read data"):
         with h5py.File(args.input, "r") as handle:
             obs = anndata.io.read_elem(handle["obs"])
             embedding = numpy.asarray(handle["obsm"][step00.harmony_key][:, :args.dims], dtype=numpy.float64)
@@ -67,25 +69,28 @@ if __name__ == "__main__":
         print(obs[step00.omics_column].value_counts())
         print("Embedding:", embedding.shape)
 
-    with notebook.cell("Reference labels", "Labels come from the scRNA file; cells without a label are left out of the reference."):
-        reference_mask = (omics_array == "scRNA")
-        labels = read_obs_column(args.reference, args.label, obs.index[reference_mask], "-scRNA")
+    with notebook.cell("Reference labels"):
+        
+        labels = read_obs_column(args.reference, args.label, obs.index[(reference_mask := (omics_array == "scRNA"))], "-scRNA")
         keep = labels.notna().to_numpy()
         reference_index = numpy.flatnonzero(reference_mask)[keep]
         query_index = numpy.flatnonzero(omics_array == "Xenium")
         categories = pandas.Categorical(labels[keep].astype(str).map(step00.safe_celltype))
-        print(pandas.Series(categories).value_counts().to_frame("Reference cells"))
-        print("Reference:", reference_index.size, "| unlabelled reference cells:", int((~keep).sum()), "| query:", query_index.size)
 
-    with notebook.cell("Reference graph", "Ingest needs scanpy neighbors (equal neighbours per row) on the reference; UMAP only with --umap."):
-        reference_adata = anndata.AnnData(obs=pandas.DataFrame({args.label: categories}, index=obs.index[reference_index]), obsm={"X_ingest": embedding[reference_index]})
-        query_adata = anndata.AnnData(obs=pandas.DataFrame(index=obs.index[query_index]), obsm={"X_ingest": embedding[query_index]})
-        scanpy.pp.neighbors(reference_adata, n_neighbors=args.neighbors, use_rep="X_ingest", random_state=42)
+        print(pandas.Series(categories).value_counts().to_frame("Reference cells"))
+        print("Reference:", reference_index.size)
+        print("Unlabelled reference cells:", int((~keep).sum()))
+        print("Query:", query_index.size)
+
+    with notebook.cell("Reference graph"):
+        reference_adata = anndata.AnnData(obs=pandas.DataFrame({args.label: categories}, index=obs.index[reference_index]), obsm={step00.ingest_column: embedding[reference_index]})
+        query_adata = anndata.AnnData(obs=pandas.DataFrame(index=obs.index[query_index]), obsm={step00.ingest_column: embedding[query_index]})
+        scanpy.pp.neighbors(reference_adata, n_neighbors=args.neighbors, use_rep=step00.ingest_column, random_state=42)
         if args.umap:
             scanpy.tl.umap(reference_adata, random_state=42)
         print(reference_adata)
 
-    with notebook.cell("Ingest", "Query cells are searched in the reference kNN index; same space as calculate_umap.py (X_pca_harmony, first --dims dimensions)."):
+    with notebook.cell("Ingest"):
         ingest = scanpy.tl.Ingest(reference_adata)
         ingest.fit(query_adata)
         ingest.neighbors(k=args.neighbors)
@@ -94,8 +99,8 @@ if __name__ == "__main__":
         ingest.to_adata(inplace=True)
         print(query_adata)
 
-    with notebook.cell("Label vote", "Majority of the k neighbours as in Ingest.map_labels, the fraction of neighbours that agree, and the mean distance to them (large for cell types missing from the reference)."):
-        best, fraction = knn_vote(ingest._indices, categories.codes.astype(numpy.int64), len(categories.categories))  # Ingest keeps the neighbour indices and distances only as private attributes
+    with notebook.cell("Label vote"):
+        best, fraction = knn_vote(ingest._indices, categories.codes.astype(numpy.int64), len(categories.categories))
         distance = ingest._distances.mean(axis=1)
         reference_distance = numpy.asarray(reference_adata.obsp["distances"].sum(axis=1)).ravel() / (args.neighbors - 1)
         distance_cut = numpy.quantile(reference_distance, args.distance_quantile) if (args.distance_quantile > 0) else numpy.inf
@@ -119,13 +124,15 @@ if __name__ == "__main__":
             print("No --truth file")
 
     with notebook.cell("Save"):
-        output_obs = obs[[column for column in [step00.omics_column, step00.sample_column, step00.sketch_column] if column in obs.columns]].copy()
+        output_obs = obs[[column for column in tqdm.tqdm([step00.omics_column, step00.sample_column, step00.sketch_column]) if column in obs.columns]].copy()
         output_obs[predicted_column] = pandas.Series(dtype=object, index=output_obs.index)
         output_obs.loc[obs.index[reference_index], predicted_column] = numpy.asarray(categories.astype(str), dtype=object)
         output_obs.loc[prediction_data.index, predicted_column] = prediction_data[predicted_column]
         output_obs[predicted_column] = pandas.Categorical(output_obs[predicted_column])
+
         output_obs[fraction_column] = numpy.nan
         output_obs.loc[prediction_data.index, fraction_column] = prediction_data[fraction_column]
+
         output_obs[distance_column] = numpy.nan
         output_obs.loc[prediction_data.index, distance_column] = prediction_data[distance_column]
 
