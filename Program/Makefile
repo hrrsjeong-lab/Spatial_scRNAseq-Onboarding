@@ -13,6 +13,7 @@ PYTHON = /home/Live/jaewoong/Spatial_scRNAseq-Onboarding/.venv/bin/python3 -B -u
 R = /usr/bin/env RENV_CONFIG_SYNCHRONIZED_CHECK=FALSE /usr/bin/Rscript
 rwildcard = $(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(subst *,%,$2),$d))
 product = $(foreach x,$1,$(addprefix $x.,$2))
+sample_prefix = $(word 1,$(subst ., ,$(1))).$(word 2,$(subst ., ,$(1)))
 
 # References
 HUMAN_FASTA = /home/Share/References/chm13/chm13v2.0.maskedY.fasta
@@ -41,6 +42,7 @@ EVALUATE_FINE_COLUMN = CellAnnotation.Level3
 EVALUATE_LABEL_MAP_09 = Metadata/McGregor2025_scRNA_all_to_Level0.tsv
 EVALUATE_MARKER_TABLE = Output/08_Marker_genes/References/McGregor2025_Xenium480_Level0_markers.tsv
 EVALUATE_INGEST_REFERENCE = 01_umap.02_Louvain.09_McGregor2025_scRNA_all
+COMMON_PROJECTION = GLUE.01_umap
 
 MCGREGOR_LINEAGE_COLUMN = CellAnnotation.Level0
 MCGREGOR_SUBTYPE_COLUMN = CellAnnotation.Level3
@@ -319,8 +321,9 @@ Output/08_Marker_genes/%.09_McGregor2025_scRNA_all.hdf5: Python/select_marker_ge
 Output/08_Marker_genes/%.10_McGregor2025_Xenium480.hdf5: Python/select_marker_genes.py Output/07_Clustering/%.hdf5 Output/08_Marker_genes/References/10_McGregor2025_Xenium480.pkl
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-Output/08_Marker_genes/Figures/%.zip: Python/draw_marker_genes.py Output/08_Marker_genes/%.hdf5 | Output/08_Marker_genes/Figures
-	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
+.SECONDEXPANSION:
+Output/08_Marker_genes/Figures/%.zip: Python/draw_marker_genes.py Output/08_Marker_genes/%.hdf5 Output/06_Dimensional_reduction/$$(call sample_prefix,$$*).$(COMMON_PROJECTION).hdf5 | Output/08_Marker_genes/Figures
+	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --projection $(abspath $(word 3,$^)) $(LOGGING)
 
 step08-test: Output/08_Marker_genes/References/09_McGregor2025_scRNA_all.pkl Output/08_Marker_genes/Test.01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.hdf5 Output/08_Marker_genes/Figures/Test.01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.zip
 step08-optimal: Output/08_Marker_genes/References/09_McGregor2025_scRNA_all.pkl Output/08_Marker_genes/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.hdf5 Output/08_Marker_genes/Figures/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.zip
@@ -415,12 +418,15 @@ Output/13_Ingest/%.Level0.hdf5: Python/predict_celltype_ingest.py Output/05_PCA/
 Output/13_Ingest/%.Level3.hdf5: Python/predict_celltype_ingest.py Output/05_PCA/%.GLUE.hdf5 Output/00_Authors/McGregor2025_scRNA_all.hdf5 Output/04_Highly_variable_genes/%.hdf5 | Output/13_Ingest
 	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $(word 3,$^) $@) --truth $(abspath $(word 4,$^)) --truth-column "$(EVALUATE_FINE_COLUMN)" --umap $(LOGGING_TEE)
 
-Output/13_Ingest/Figures/%.zip: Python/draw_marker_genes_2.py Output/13_Ingest/%.hdf5 | Output/13_Ingest/Figures
-	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING_TEE)
+Output/13_Ingest/Figures/%.Level0.zip: Python/draw_marker_genes_2.py Output/13_Ingest/%.Level0.hdf5 Output/06_Dimensional_reduction/%.$(COMMON_PROJECTION).hdf5 Python/evaluate_marker_genes.py Python/predict_celltype_ingest.py | Output/13_Ingest/Figures
+	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --projection $(abspath $(word 3,$^)) --label-map $(abspath $(EVALUATE_LABEL_MAP_09)) --fine-column "$(EVALUATE_FINE_COLUMN)" $(LOGGING_TEE)
+
+Output/13_Ingest/Figures/%.Level3.zip: Python/draw_marker_genes_2.py Output/13_Ingest/%.Level3.hdf5 Output/06_Dimensional_reduction/%.$(COMMON_PROJECTION).hdf5 Python/evaluate_marker_genes.py Python/predict_celltype_ingest.py | Output/13_Ingest/Figures
+	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --projection $(abspath $(word 3,$^)) --label-map $(abspath $(EVALUATE_LABEL_MAP_09)) --fine-column "$(EVALUATE_FINE_COLUMN)" $(LOGGING_TEE)
 
 step13-test: Output/13_Ingest/Test.01_Seurat.Level0.hdf5 Output/13_Ingest/Figures/Test.01_Seurat.Level0.zip
 step13-optimal: Output/13_Ingest/$(OPTIMAL).01_Seurat.Level0.hdf5 Output/13_Ingest/Figures/$(OPTIMAL).01_Seurat.Level0.zip
-step13:Output/13_Ingest/$(OPTIMAL).01_Seurat.Level3.hdf5 Output/13_Ingest/Figures/$(OPTIMAL).01_Seurat.Level3.zip
+step13: Output/13_Ingest/$(OPTIMAL).01_Seurat.Level3.hdf5 Output/13_Ingest/Figures/$(OPTIMAL).01_Seurat.Level3.zip
 .PHONY: step13-test step13-optimal step13
 
 # Step 14 (Evaluate ingest)
