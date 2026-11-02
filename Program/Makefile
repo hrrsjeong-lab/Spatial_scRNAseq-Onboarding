@@ -28,11 +28,6 @@ PROJECTIONS = 01_umap 02_tsne 03_phate 04_trimap
 CLUSTERINGS = 01_Leiden 02_Louvain
 CELLTYPES = 09_McGregor2025_scRNA_all 10_McGregor2025_Xenium480
 
-SEURAT_K = 30
-SEURAT_PRUNE = 0.067
-SEURAT_RESOLUTION = 0.7
-TRANSFER_K = 50
-
 MCGREGOR_XENIUM_ASSAY =
 MCGREGOR_XENIUM_LABEL = CellAnnotation.Level0.Factor
 MCGREGOR_XENIUM_PER_LABEL = 5000
@@ -41,9 +36,6 @@ EVALUATE_TRUE_COLUMN = CellAnnotation.Level0
 EVALUATE_FINE_COLUMN = CellAnnotation.Level3
 EVALUATE_LABEL_MAP_09 = Metadata/McGregor2025_scRNA_all_to_Level0.tsv
 EVALUATE_MARKER_TABLE = Output/08_Marker_genes/References/McGregor2025_Xenium480_Level0_markers.tsv
-EVALUATE_INGEST_REFERENCE = 01_umap.02_Louvain.09_McGregor2025_scRNA_all
-COMMON_PROJECTION = GLUE.01_umap
-INGEST_CLUSTERING = 01_umap.02_Louvain
 
 MCGREGOR_LINEAGE_COLUMN = CellAnnotation.Level0
 MCGREGOR_SUBTYPE_COLUMN = CellAnnotation.Level3
@@ -323,7 +315,7 @@ Output/08_Marker_genes/%.10_McGregor2025_Xenium480.hdf5: Python/select_marker_ge
 	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 .SECONDEXPANSION:
-Output/08_Marker_genes/Figures/%.zip: Python/draw_marker_genes.py Output/08_Marker_genes/%.hdf5 Output/06_Dimensional_reduction/$$(call sample_prefix,$$*).$(COMMON_PROJECTION).hdf5 | Output/08_Marker_genes/Figures
+Output/08_Marker_genes/Figures/%.zip: Python/draw_marker_genes.py Output/08_Marker_genes/%.hdf5 Output/06_Dimensional_reduction/$$(call sample_prefix,$$*).GLUE.01_umap.hdf5 | Output/08_Marker_genes/Figures
 	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --projection $(abspath $(word 3,$^)) $(LOGGING)
 
 step08-test: Output/08_Marker_genes/References/09_McGregor2025_scRNA_all.pkl Output/08_Marker_genes/Test.01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.hdf5 Output/08_Marker_genes/Figures/Test.01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.zip
@@ -396,7 +388,7 @@ Output/12_McGregor_figures/%.pseudobulk.hdf5: Python/calculate_pseudobulk_pca.py
 	$(SLURM) $(PYTHON) $(abspath $^ $@) --group-column "$(MCGREGOR_GROUP_COLUMN)" --top-genes 1000 $(LOGGING)
 
 Output/12_McGregor_figures/%.fibroblasts.hdf5: Python/calculate_subset_embedding.py Output/03_QC_filtering/%.hdf5 | Output/12_McGregor_figures
-	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --lineage-column "$(MCGREGOR_LINEAGE_COLUMN)" --pattern '$(MCGREGOR_SUBSET_PATTERN)' --subtype-column "$(MCGREGOR_SUBTYPE_COLUMN)" --group-column "$(MCGREGOR_GROUP_COLUMN)" --n-top-genes 2000 --pcs $(SEURAT_NPCS) --dims $(UMAP_DIMS) --neighbors $(UMAP_NEIGHBORS) --min-dist $(UMAP_MIN_DIST) $(LOGGING)
+	$(SLURM) $(GPUS) $(PYTHON) $(abspath $^ $@) --lineage-column "$(MCGREGOR_LINEAGE_COLUMN)" --pattern '(?i)fibroblast|^FAS' --subtype-column "$(MCGREGOR_SUBTYPE_COLUMN)" --group-column "$(MCGREGOR_GROUP_COLUMN)" --n-top-genes 2000 --pcs 50 --dims 2:30 --neighbors 30 --min-dist 0.01 $(LOGGING)
 
 Output/12_McGregor_figures/Figures/%.ED10.zip: Python/draw_mcgregor_extended_data10.py Output/03_QC_filtering/%.hdf5 Output/12_McGregor_figures/%.pseudobulk.hdf5 Output/12_McGregor_figures/%.fibroblasts.hdf5 | Output/12_McGregor_figures/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) --lineage-column "$(MCGREGOR_LINEAGE_COLUMN)" --group-column "$(MCGREGOR_GROUP_COLUMN)" $(if $(MCGREGOR_SECTIONS),--sections $(MCGREGOR_SECTIONS),) $(LOGGING)
@@ -413,16 +405,16 @@ Output/13_Ingest:
 Output/13_Ingest/Figures:
 	mkdir -p $@
 
-Output/13_Ingest/%.Level0.hdf5: Python/predict_celltype_ingest.py Output/05_PCA/%.GLUE.hdf5 Output/00_Authors/McGregor2025_scRNA_all.hdf5 Output/04_Highly_variable_genes/%.hdf5 Output/07_Clustering/%.$(INGEST_CLUSTERING).hdf5 | Output/13_Ingest
+Output/13_Ingest/%.Level0.hdf5: Python/predict_celltype_ingest.py Output/05_PCA/%.GLUE.hdf5 Output/00_Authors/McGregor2025_scRNA_all.hdf5 Output/04_Highly_variable_genes/%.hdf5 Output/07_Clustering/%.01_umap.02_Louvain.hdf5 | Output/13_Ingest
 	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $(word 3,$^) $@) --truth $(abspath $(word 4,$^)) --truth-column "$(EVALUATE_TRUE_COLUMN)" --clustering $(abspath $(word 5,$^)) --umap $(LOGGING)
 
-Output/13_Ingest/%.Level3.hdf5: Python/predict_celltype_ingest.py Output/05_PCA/%.GLUE.hdf5 Output/00_Authors/McGregor2025_scRNA_all.hdf5 Output/04_Highly_variable_genes/%.hdf5 Output/07_Clustering/%.$(INGEST_CLUSTERING).hdf5 | Output/13_Ingest
+Output/13_Ingest/%.Level3.hdf5: Python/predict_celltype_ingest.py Output/05_PCA/%.GLUE.hdf5 Output/00_Authors/McGregor2025_scRNA_all.hdf5 Output/04_Highly_variable_genes/%.hdf5 Output/07_Clustering/%.01_umap.02_Louvain.hdf5 | Output/13_Ingest
 	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $(word 3,$^) $@) --truth $(abspath $(word 4,$^)) --truth-column "$(EVALUATE_FINE_COLUMN)" --clustering $(abspath $(word 5,$^)) --umap $(LOGGING)
 
-Output/13_Ingest/Figures/%.Level0.zip: Python/draw_marker_genes_2.py Output/13_Ingest/%.Level0.hdf5 Output/06_Dimensional_reduction/%.$(COMMON_PROJECTION).hdf5 Python/evaluate_marker_genes.py Python/predict_celltype_ingest.py | Output/13_Ingest/Figures
+Output/13_Ingest/Figures/%.Level0.zip: Python/draw_marker_genes_2.py Output/13_Ingest/%.Level0.hdf5 Output/06_Dimensional_reduction/%.GLUE.01_umap.hdf5 Python/evaluate_marker_genes.py Python/predict_celltype_ingest.py | Output/13_Ingest/Figures
 	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --projection $(abspath $(word 3,$^)) --label-map $(abspath $(EVALUATE_LABEL_MAP_09)) --fine-column "$(EVALUATE_FINE_COLUMN)" $(LOGGING)
 
-Output/13_Ingest/Figures/%.Level3.zip: Python/draw_marker_genes_2.py Output/13_Ingest/%.Level3.hdf5 Output/06_Dimensional_reduction/%.$(COMMON_PROJECTION).hdf5 Python/evaluate_marker_genes.py Python/predict_celltype_ingest.py | Output/13_Ingest/Figures
+Output/13_Ingest/Figures/%.Level3.zip: Python/draw_marker_genes_2.py Output/13_Ingest/%.Level3.hdf5 Output/06_Dimensional_reduction/%.GLUE.01_umap.hdf5 Python/evaluate_marker_genes.py Python/predict_celltype_ingest.py | Output/13_Ingest/Figures
 	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --projection $(abspath $(word 3,$^)) --label-map $(abspath $(EVALUATE_LABEL_MAP_09)) --fine-column "$(EVALUATE_FINE_COLUMN)" $(LOGGING)
 
 step13-test: Output/13_Ingest/Test.01_Seurat.Level0.hdf5 Output/13_Ingest/Figures/Test.01_Seurat.Level0.zip
@@ -437,7 +429,7 @@ Output/14_Evaluate_ingest:
 Output/14_Evaluate_ingest/Figures:
 	mkdir -p $@
 
-Output/14_Evaluate_ingest/%.hdf5: Python/evaluate_celltype_ingest.py Output/13_Ingest/%.hdf5 Output/11_Evaluate_celltype/%.$(EVALUATE_INGEST_REFERENCE).hdf5 $(EVALUATE_LABEL_MAP_09) Python/evaluate_marker_genes.py | Output/14_Evaluate_ingest
+Output/14_Evaluate_ingest/%.hdf5: Python/evaluate_celltype_ingest.py Output/13_Ingest/%.hdf5 Output/11_Evaluate_celltype/%.01_umap.02_Louvain.09_McGregor2025_scRNA_all.hdf5 $(EVALUATE_LABEL_MAP_09) Python/evaluate_marker_genes.py | Output/14_Evaluate_ingest
 	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $(word 3,$^) $@) --label-map $(abspath $(word 4,$^)) $(LOGGING)
 
 Output/14_Evaluate_ingest/Figures/%.zip: Python/draw_evaluate_marker_genes.py Output/14_Evaluate_ingest/%.hdf5 | Output/14_Evaluate_ingest/Figures
