@@ -80,6 +80,7 @@ if __name__ == "__main__":
 
     obs_data = input_adata.obs.copy()
     prediction_list = [prediction for prediction in candidate_prediction_list if prediction in obs_data.columns]
+    prediction_list = [str(prediction) for prediction in input_adata.uns["evaluation_parameters"]["predictions"]] if ("method" in input_adata.uns["evaluation_parameters"]) else [prediction for prediction in candidate_prediction_list if prediction in obs_data.columns]
     probability_column_list = [f"{prediction.split()[0]} Max probability" for prediction in prediction_list]
     print("Predictions:", prediction_list)
 
@@ -88,6 +89,7 @@ if __name__ == "__main__":
     evaluation = input_adata.uns["evaluation"]
     parameters = input_adata.uns["evaluation_parameters"]
     focus_label = str(parameters["focus_label"])
+    score_name = str(parameters.get("score_name", "Max probability"))
     print(parameters)
 
     labelled_data = obs_data.loc[(obs_data["Truth"] != "Unlabelled")]
@@ -136,6 +138,7 @@ if __name__ == "__main__":
         seaborn.boxplot(data=probability_data, x="Label", y="Max probability", hue="Prediction", order=composition_data.index.tolist(), palette="tab10", showfliers=False, ax=ax)
         matplotlib.pyplot.xticks(fontsize="xx-small", rotation="vertical")
         matplotlib.pyplot.ylim(0, 1)
+        matplotlib.pyplot.ylabel(score_name)
         matplotlib.pyplot.xlabel("Predicted label")
         matplotlib.pyplot.tight_layout()
         save_figure(fig, directory, "Probability-by-Prediction", figure_list)
@@ -144,6 +147,7 @@ if __name__ == "__main__":
         seaborn.boxplot(data=cluster_probability_data, x="Clustering", y="Max probability", hue="Prediction", order=cluster_order, palette="tab10", showfliers=False, ax=ax)
         matplotlib.pyplot.xticks(fontsize="xx-small")
         matplotlib.pyplot.ylim(0, 1)
+        matplotlib.pyplot.ylabel(score_name)
         matplotlib.pyplot.tight_layout()
         save_figure(fig, directory, "Probability-by-Cluster", figure_list)
 
@@ -187,6 +191,44 @@ if __name__ == "__main__":
             marker_data = marker_data.loc[row_order, column_order]
             limit = float(numpy.nanquantile(numpy.abs(marker_data.to_numpy()), 0.98)) or 1.0
             draw_heatmap(marker_data, "Marker set (authors' FindAllMarkers)", prediction, directory, f"Marker-score-{prediction.replace(' ', '_')}", figure_list, diagonal=n_shared, vmin=-limit, vmax=limit, center=0.0, cmap="RdBu_r")
+
+        if "Recall_by_truth" in evaluation:
+            recall_data = evaluation["Recall_by_truth"].astype(float)
+            recall_data = recall_data.loc[label_order(recall_data.index), [prediction for prediction in prediction_list if prediction in recall_data.columns]]
+            draw_heatmap(recall_data, "Recall (fraction of truth cells given the same label)", "Truth", directory, "Recall-by-Truth", figure_list, vmin=0.0, vmax=1.0, cmap="YlOrRd")
+
+        for key in [key for key in evaluation if key.startswith("Confidence_")]:
+            confidence_data = evaluation[key]
+            fig, ax = matplotlib.pyplot.subplots(figsize=(24, 14))
+            x = numpy.arange(len(confidence_data))
+            ax.bar(x, confidence_data["Fraction of cells"].astype(float), color="lightgray", label="Fraction of cells")
+            ax.plot(x, confidence_data["Accuracy"].astype(float), marker="o", markersize=20, linewidth=4, color="tab:red", label="Accuracy")
+            ax.set_xticks(x, confidence_data.index.astype(str), fontsize="xx-small", rotation=30, ha="right")
+            matplotlib.pyplot.ylim(0, 1)
+            matplotlib.pyplot.xlabel("Mean distance to the reference neighbours (quantile bins)" if key.endswith("_distance") else f"{score_name} bin")
+            matplotlib.pyplot.title(key.removeprefix("Confidence_").replace("_", " "), fontsize="small")
+            matplotlib.pyplot.legend(loc="upper left", fontsize="xx-small")
+            matplotlib.pyplot.tight_layout()
+            save_figure(fig, directory, key.replace("_", "-", 1), figure_list)
+
+        if "Classifier_summary" in evaluation:
+            for average, average_data in evaluation["Classifier_summary"].groupby("Average", sort=False):
+                plot_data = average_data.melt(id_vars=["Prediction", "Average"], value_vars=step00.evaluation_list, var_name="Metric", value_name="Value")
+                fig, ax = matplotlib.pyplot.subplots(figsize=(32, 18))
+                seaborn.barplot(data=plot_data, x="Metric", y="Value", hue="Prediction", hue_order=[prediction for prediction in prediction_list if prediction in set(plot_data["Prediction"].astype(str))], palette="tab10", ax=ax)
+                matplotlib.pyplot.xticks(fontsize="xx-small", rotation="vertical")
+                matplotlib.pyplot.ylim(min(0.0, float(plot_data["Value"].min())), 1.0)
+                matplotlib.pyplot.xlabel("")
+                matplotlib.pyplot.title(f"One-vs-rest classifier metrics: {average} over the truth labels", fontsize="small")
+                matplotlib.pyplot.legend(loc="upper left", bbox_to_anchor=(1.01, 1.0), fontsize="xx-small")
+                matplotlib.pyplot.tight_layout()
+                save_figure(fig, directory, f"Classifier-{average}", figure_list)
+
+            for prediction in prediction_list:
+                key = f"{prediction.replace(' ', '_')}_classifier"
+                if key in evaluation:
+                    metric_data = evaluation[key][step00.evaluation_list].astype(float)
+                    draw_heatmap(metric_data.loc[label_order(metric_data.index)], "Metric (one truth label against the rest)", "Truth", directory, f"Classifier-{prediction.replace(' ', '_')}", figure_list, vmin=-1.0, vmax=1.0, center=0.0, cmap="RdBu_r")
 
         with zipfile.ZipFile(args.output, mode="w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as zip_file:
             for figure in tqdm.tqdm(figure_list):
