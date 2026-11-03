@@ -43,7 +43,6 @@ def accuracy_table(correct: pandas.Series, score: pandas.Series, bins: typing.Se
 
 
 def classifier_table(truth: pandas.Series, predicted: pandas.Series, labels: typing.List[str]) -> pandas.DataFrame:
-    # One truth label against the rest; sklearn layout [[TN, FP], [FN, TP]] (rows: truth, columns: prediction)
     matrices = sklearn.metrics.multilabel_confusion_matrix(truth.to_numpy(), predicted.to_numpy(), labels=labels)
     rows = {label: {"TN": int(matrix[0, 0]), "FP": int(matrix[0, 1]), "FN": int(matrix[1, 0]), "TP": int(matrix[1, 1])} | step00.evaluate_confusion_matrix(matrix) for label, matrix in zip(labels, matrices)}
     table = pandas.DataFrame.from_dict(rows, orient="index")
@@ -52,7 +51,6 @@ def classifier_table(truth: pandas.Series, predicted: pandas.Series, labels: typ
 
 
 def classifier_averages(table: pandas.DataFrame) -> typing.Dict[str, typing.Dict[str, float]]:
-    # Macro: mean over truth labels; Weighted: by truth cells; Micro: summed confusion matrix. Undefined values (a label never predicted) count as 0 in Macro and Weighted, as in sklearn zero_division=0
     metric_data = table[step00.evaluation_list].astype(float).fillna(0.0)
     support = table["Support"].astype(float)
     pooled = table[["TN", "FP", "FN", "TP"]].sum().to_numpy().reshape(2, 2)
@@ -77,7 +75,6 @@ if __name__ == "__main__":
     step00.check_suffix(args.truth, {".hdf5", ".h5", ".h5ad"})
     step00.check_suffix(args.output, {".hdf5", ".h5"})
 
-    # Predicted labels (original names) and their scores
     input_obs = read_obs(args.input)
     if args.method == "CellTypist":
         input_parameters = read_uns(args.input, "evaluation_parameters")
@@ -96,16 +93,19 @@ if __name__ == "__main__":
         extra_columns = list()
         score_name = "Neighbour fraction"
     names = pandas.Index(input_obs.index.astype(str))
-    print("Method:", args.method, "| cells:", len(names), "| predictions:", prediction_list)
+    print("Method:", args.method)
+    print("Cells:", len(names))
+    print("Predictions:", prediction_list)
 
-    # Authors' labels for the same cells
     truth_obs = read_obs(args.truth)
     truth_values = aligned(truth_obs, args.truth_column, names, "-Xenium")
     labelled = truth_values.notna().to_numpy()
     truth = safe_series(truth_values.where(labelled, unlabelled_value))
     truth_labels = set(truth[labelled])
-    print("Truth:", args.truth_column, "| labelled cells:", int(labelled.sum()), "of", len(names), "| labels:", len(truth_labels))
-    assert labelled.any(), f"No cell of {args.input} has {args.truth_column} in {args.truth}"
+    print("Truth:", args.truth_column)
+    print("Labelled cells:", int(labelled.sum()), "of", len(names))
+    print("Labels:", len(truth_labels))
+    assert labelled.any(), f"No cell of {args.input} has {args.truth_column} in {args.truth}!!"
 
     parent_dict: typing.Dict[str, str] = dict()
     if args.fine_column and (args.fine_column != args.truth_column):
@@ -123,27 +123,25 @@ if __name__ == "__main__":
         print("Label map entries outside the truth labels (ignored):", {key: value for key, value in label_map_dict.items() if value not in truth_labels})
         label_map_dict = {key: value for key, value in label_map_dict.items() if value in truth_labels}
 
-    # Every prediction on the truth level with the same rules (label map, exact, spelling, fine-label parent)
     label_match = match_labels(sorted(set(model.to_numpy().ravel().astype(str))), truth_labels, parent_dict, label_map_dict)
     label_match = label_match.join(pandas.DataFrame({prediction: model[prediction].value_counts() for prediction in prediction_list}).reindex(label_match.index).fillna(0).astype(int))
-    with pandas.option_context("display.width", 250, "display.max_columns", None, "display.max_rows", 200):
-        print(label_match.sort_values(["Rule", "Evaluated label"]).to_string())
+    print(label_match.sort_values(["Rule", "Evaluated label"]).to_string())
     print("Truth labels without a predicted counterpart:", sorted(truth_labels - set(label_match["Evaluated label"])))
 
     result = pandas.DataFrame({"Truth": truth.to_numpy()}, index=names)
-    for column, default in [(step00.clustering_column, "Unclustered"), (step00.sample_column, "Unknown")]:
+    for column, default in tqdm.tqdm([(step00.clustering_column, "Unclustered"), (step00.sample_column, "Unknown")]):
         result[column] = input_obs[column].astype(object).fillna(default).astype(str).to_numpy() if (column in input_obs.columns) else default
-    for prediction in prediction_list:
+    for prediction in tqdm.tqdm(prediction_list):
         result[prediction] = model[prediction].map(label_match["Evaluated label"]).to_numpy()
         result[f"{prediction} model label"] = model[prediction].to_numpy()
-    for column in score_columns + [column for column in extra_columns if column in input_obs.columns]:
+    for column in tqdm.tqdm(score_columns + [column for column in extra_columns if column in input_obs.columns]):
         result[column] = input_obs[column].to_numpy()
 
-    # Each prediction against the truth
     tables: typing.Dict[str, pandas.DataFrame] = {"Label_match": clean_table(label_match)}
     labelled_result = result.loc[labelled]
     summary_list = list()
     recall_dict = dict()
+
     for prediction in tqdm.tqdm(prediction_list):
         prefix = prediction.split()[0]
         correct = (labelled_result[prediction] == labelled_result["Truth"])
@@ -154,7 +152,6 @@ if __name__ == "__main__":
         tables[f"Confidence_{prediction.replace(' ', '_')}"] = accuracy_table(correct, labelled_result[f"{prefix} Max probability"], score_bins)
     tables["Summary"] = pandas.DataFrame(summary_list).set_index("Prediction")
 
-    # Each prediction as a classifier: one-vs-rest confusion matrix of every truth label
     classifier_rows: typing.List[typing.Dict[str, typing.Any]] = list()
     for prediction in tqdm.tqdm(prediction_list):
         classifier_data = classifier_table(labelled_result["Truth"], labelled_result[prediction], sorted(truth_labels))
@@ -175,7 +172,7 @@ if __name__ == "__main__":
     cluster_rows = list()
     for cluster, frame in tqdm.tqdm(result.groupby(step00.clustering_column)):
         row: typing.Dict[str, typing.Any] = {"Cells": len(frame)}
-        for column in ["Truth"] + prediction_list:
+        for column in tqdm.tqdm(["Truth"] + prediction_list, leave=False):
             fractions = frame[column].value_counts(normalize=True)
             row[f"{column} top"] = str(fractions.index[0])
             row[f"{column} fraction"] = float(fractions.iloc[0])
@@ -184,17 +181,16 @@ if __name__ == "__main__":
         cluster_rows.append(pandas.Series(row, name=cluster))
     tables["By_cluster"] = clean_table(pandas.DataFrame(cluster_rows).sort_index(key=lambda index: pandas.to_numeric(index, errors="coerce")))
 
-    with pandas.option_context("display.width", 250, "display.max_columns", None, "display.max_rows", 200):
-        print(tables["Summary"].to_string(float_format=lambda x: f"{x:.3f}"))
-        print("\n== One-vs-rest classifier metrics over the truth labels (step00.evaluate_confusion_matrix) ==")
-        print(tables["Classifier_summary"].set_index(["Prediction", "Average"])[["Sensitivity", "Specificity", "Precision", "F1", "Balanced accuracy", "Informedness", "Markedness"]].to_string(float_format=lambda x: f"{x:.3f}"))
-        print(f"\n== Recall by {args.truth_column} ==")
-        print(tables["Recall_by_truth"].to_string(float_format=lambda x: f"{x:.3f}"))
-        for key in [key for key in tables if key.startswith("Confidence_")]:
-            print(f"\n== {key} ==")
-            print(tables[key].to_string(float_format=lambda x: f"{x:.3f}"))
-        print(f"\n== Truth composition of cells predicted as {focus_label} ==")
-        print(tables["Focus_composition"].head(30).to_string(float_format=lambda x: f"{x:.3f}"))
+    print(tables["Summary"].to_string(float_format=lambda x: f"{x:.3f}"))
+    print("\n== One-vs-rest classifier metrics over the truth labels (step00.evaluate_confusion_matrix) ==")
+    print(tables["Classifier_summary"].set_index(["Prediction", "Average"])[["Sensitivity", "Specificity", "Precision", "F1", "Balanced accuracy", "Informedness", "Markedness"]].to_string(float_format=lambda x: f"{x:.3f}"))
+    print(f"\n== Recall by {args.truth_column} ==")
+    print(tables["Recall_by_truth"].to_string(float_format=lambda x: f"{x:.3f}"))
+    for key in [key for key in tables if key.startswith("Confidence_")]:
+        print(f"\n== {key} ==")
+        print(tables[key].to_string(float_format=lambda x: f"{x:.3f}"))
+    print(f"\n== Truth composition of cells predicted as {focus_label} ==")
+    print(tables["Focus_composition"].head(30).to_string(float_format=lambda x: f"{x:.3f}"))
 
     parameters = {"method": args.method, "input": args.input, "truth": args.truth, "true_column": args.truth_column, "fine_column": args.fine_column, "label_map": args.label_map, "predictions": prediction_list, "score_name": score_name, "focus_label": focus_label, "cells": int(len(result)), "labelled_cells": int(labelled.sum())}
     output_adata = anndata.AnnData(obs=result, uns={"evaluation": tables, "evaluation_parameters": parameters})

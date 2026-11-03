@@ -31,7 +31,6 @@ def label_order(values: typing.Iterable) -> typing.List[str]:
 
 
 def paired_order(rows: typing.Iterable, columns: typing.Iterable) -> typing.Tuple[typing.List[str], typing.List[str], int]:
-    # Labels present on both axes first, in the same sorted order (diagonal = same label), then the labels found on one axis only
     shared = label_order(set(map(str, rows)) & set(map(str, columns)))
     return shared + label_order(set(map(str, rows)) - set(shared)), shared + label_order(set(map(str, columns)) - set(shared)), len(shared)
 
@@ -46,7 +45,7 @@ def save_figure(fig: matplotlib.figure.Figure, directory: str, name: str, figure
 def draw_heatmap(data: pandas.DataFrame, xlabel: str, ylabel: str, directory: str, name: str, figure_list: typing.List[str], diagonal: int = 0, **kwargs) -> None:
     fig, ax = matplotlib.pyplot.subplots(figsize=(max(24, 1.0 * data.shape[1] + 10), max(18, 0.6 * data.shape[0] + 8)))
 
-    seaborn.heatmap(data=data, annot=(data.size <= 600), fmt=".2f", annot_kws={"size": "xx-small"}, cbar=True, xticklabels=True, yticklabels=True, ax=ax, **kwargs)
+    seaborn.heatmap(data=data, annot=(data.size <= 600), fmt=".2f", annot_kws={"size": "xx-small"}, cbar=False, xticklabels=True, yticklabels=True, ax=ax, **kwargs)
 
     if diagonal > 0:
         for i in range(diagonal):
@@ -119,39 +118,57 @@ if __name__ == "__main__":
         figure_list: typing.List[str] = list()
 
         fig, ax = matplotlib.pyplot.subplots(figsize=(32, 18))
-        seaborn.barplot(data=summary_data, x="Metric", y="Value", hue="Prediction", palette="tab10", ax=ax)
+        seaborn.barplot(data=summary_data, x="Metric", y="Value", ax=ax)
+        for index, row in tqdm.tqdm(summary_data.iterrows(), total=len(summary_data)):
+            matplotlib.pyplot.text(index, row["Value"], f"{row['Value']:.2f}", color="black", fontsize="small", horizontalalignment="center", verticalalignment="bottom", path_effects=step00.path_effects)
         matplotlib.pyplot.xticks(fontsize="xx-small")
+        matplotlib.pyplot.yticks(fontsize="xx-small")
         matplotlib.pyplot.ylim(0, 1)
         matplotlib.pyplot.xlabel("")
-        matplotlib.pyplot.legend(loc="upper right")
         matplotlib.pyplot.tight_layout()
-        save_figure(fig, directory, "Summary-Bar", figure_list)
+        figure_list.append(f"{directory}/Summary-Bar.png")
+        fig.savefig(figure_list[-1])
+        figure_list.append(f"{directory}/Summary-Bar.pdf")
+        fig.savefig(figure_list[-1])
+        matplotlib.pyplot.close(fig)
 
+        drawing_data = composition_data.reset_index(names="Label").melt(id_vars="Label", var_name="Prediction", value_name="Fraction of cells")
         fig, ax = matplotlib.pyplot.subplots(figsize=(max(32, 1.2 * len(composition_data) + 10), 18))
-        seaborn.barplot(data=composition_data.reset_index(names="Label").melt(id_vars="Label", var_name="Prediction", value_name="Fraction of cells"), x="Label", y="Fraction of cells", hue="Prediction", palette="tab10", ax=ax)
+        seaborn.barplot(data=drawing_data, x="Label", y="Fraction of cells", ax=ax)
+        for index, row in tqdm.tqdm(drawing_data.iterrows(), total=len(drawing_data)):
+            matplotlib.pyplot.text(index, row["Fraction of cells"], f"{row['Fraction of cells']:.2f}", color="black", fontsize="x-small", horizontalalignment="center", verticalalignment="bottom", path_effects=step00.path_effects)
         matplotlib.pyplot.xticks(fontsize="xx-small", rotation="vertical")
+        matplotlib.pyplot.yticks(fontsize="xx-small", rotation="horizontal")
         matplotlib.pyplot.xlabel("Predicted label")
         matplotlib.pyplot.tight_layout()
-        save_figure(fig, directory, "Predicted-Composition", figure_list)
+        figure_list.append(f"{directory}/Predicted-Composition.png")
+        fig.savefig(figure_list[-1])
+        figure_list.append(f"{directory}/Predicted-Composition.pdf")
+        fig.savefig(figure_list[-1])
+        matplotlib.pyplot.close(fig)
+        del drawing_data
 
         fig, ax = matplotlib.pyplot.subplots(figsize=(max(32, 1.2 * len(composition_data) + 10), 18))
-        seaborn.boxplot(data=probability_data, x="Label", y="Max probability", hue="Prediction", order=composition_data.index.tolist(), palette="tab10", showfliers=False, ax=ax)
+        seaborn.boxplot(data=probability_data, x="Label", y="Max probability", order=composition_data.index.tolist(), showfliers=False, ax=ax)
         matplotlib.pyplot.xticks(fontsize="xx-small", rotation="vertical")
-        matplotlib.pyplot.ylim(0, 1)
         matplotlib.pyplot.ylabel(score_name)
         matplotlib.pyplot.xlabel("Predicted label")
         matplotlib.pyplot.tight_layout()
-        save_figure(fig, directory, "Probability-by-Prediction", figure_list)
+        figure_list.append(f"{directory}/Probability-by-Prediction.png")
+        fig.savefig(figure_list[-1])
+        figure_list.append(f"{directory}/Probability-by-Prediction.pdf")
+        fig.savefig(figure_list[-1])
+        matplotlib.pyplot.close(fig)
 
         fig, ax = matplotlib.pyplot.subplots(figsize=(max(32, 1.2 * len(cluster_order) + 10), 18))
-        seaborn.boxplot(data=cluster_probability_data, x="Clustering", y="Max probability", hue="Prediction", order=cluster_order, palette="tab10", showfliers=False, ax=ax)
+        seaborn.boxplot(data=cluster_probability_data, x="Clustering", y="Max probability", order=cluster_order, showfliers=False, ax=ax)
         matplotlib.pyplot.xticks(fontsize="xx-small")
         matplotlib.pyplot.ylim(0, 1)
         matplotlib.pyplot.ylabel(score_name)
         matplotlib.pyplot.tight_layout()
         save_figure(fig, directory, "Probability-by-Cluster", figure_list)
 
-        for column in ["Truth"] + prediction_list:
+        for column in tqdm.tqdm(["Truth"] + prediction_list):
             data = obs_data if (column != "Truth") else labelled_data
             cluster_data = pandas.crosstab(data["Clustering"], data[column], normalize="index").reindex(index=[cluster for cluster in cluster_order if cluster in set(data["Clustering"])])
             cluster_data = cluster_data.loc[:, label_order(cluster_data.columns)]
@@ -229,6 +246,24 @@ if __name__ == "__main__":
                 if key in evaluation:
                     metric_data = evaluation[key][step00.evaluation_list].astype(float)
                     draw_heatmap(metric_data.loc[label_order(metric_data.index)], "Metric (one truth label against the rest)", "Truth", directory, f"Classifier-{prediction.replace(' ', '_')}", figure_list, vmin=-1.0, vmax=1.0, center=0.0, cmap="RdBu_r")
+
+                    crosstab_data = evaluation[f"{prediction.replace(' ', '_')}_crosstab"].astype(float)
+                    truth_list = label_order(evaluation[key].index)
+                    confusion_data = crosstab_data.reindex(index=truth_list, columns=truth_list, fill_value=0.0)
+                    confusion_data["Other"] = crosstab_data.reindex(index=truth_list, fill_value=0.0).drop(columns=[label for label in truth_list if label in crosstab_data.columns]).sum(axis=1)
+                    fraction_data = confusion_data.div(confusion_data.sum(axis=1).replace(0.0, numpy.nan), axis=0)
+                    fig, ax = matplotlib.pyplot.subplots(figsize=(max(24, 1.0 * confusion_data.shape[1] + 10), max(18, 0.6 * confusion_data.shape[0] + 8)))
+                    seaborn.heatmap(data=fraction_data, annot=(confusion_data.astype(int).to_numpy() if (confusion_data.size <= 600) else False), fmt="d", annot_kws={"size": "xx-small"}, vmin=0.0, vmax=1.0, cmap="YlOrRd", cbar=True, xticklabels=True, yticklabels=True, ax=ax)
+                    for i in range(len(truth_list)):
+                        ax.add_patch(matplotlib.patches.Rectangle((i, i), 1, 1, fill=False, edgecolor="black", linewidth=2))
+                    ax.axvline(len(truth_list), color="black", linewidth=2)
+                    matplotlib.pyplot.xticks(fontsize="xx-small", rotation="vertical")
+                    matplotlib.pyplot.yticks(fontsize="xx-small", rotation="horizontal")
+                    matplotlib.pyplot.xlabel(f"{prediction}")
+                    matplotlib.pyplot.ylabel("Truth")
+                    matplotlib.pyplot.title("Cells; diagonal = TP, row - diagonal = FN, column - diagonal = FP", fontsize="x-small")
+                    matplotlib.pyplot.tight_layout()
+                    save_figure(fig, directory, f"Confusion-{prediction.replace(' ', '_')}", figure_list)
 
         with zipfile.ZipFile(args.output, mode="w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as zip_file:
             for figure in tqdm.tqdm(figure_list):
