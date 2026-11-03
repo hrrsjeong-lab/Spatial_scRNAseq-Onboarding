@@ -137,26 +137,30 @@ def safe_celltype(celltype: str) -> str:
     return celltype.replace("/", "&")
 
 
+def safe_ratio(numerator: float, denominator: float) -> float:
+    return (numerator / denominator) if (denominator > 0) else numpy.nan
+
+
 def evaluate_confusion_matrix(confusion_matrix: numpy.ndarray) -> typing.Dict[str, float]:
     assert confusion_matrix.shape == (2, 2), confusion_matrix
 
-    true_negative, false_positive, false_negative, true_positive = confusion_matrix[0][0], confusion_matrix[0][1], confusion_matrix[1][0], confusion_matrix[1][1]
-    positive = true_positive + false_positive
-    negative = true_negative + false_negative
+    true_negative, false_positive, false_negative, true_positive = (float(value) for value in numpy.asarray(confusion_matrix).ravel())
+    actual_positive, actual_negative = true_positive + false_negative, true_negative + false_positive
+    predicted_positive, predicted_negative = true_positive + false_positive, true_negative + false_negative
 
-    answer = dict()
-    answer["Accuracy"] = (true_positive + true_negative) / (positive + negative)
-    answer["F1"] = (2 * true_positive) / (2 * true_positive + false_positive + false_negative)
-    answer["Sensitivity"] = true_positive / positive
-    answer["Specificity"] = true_negative / negative
-    answer["Precision"] = true_positive / (true_positive + false_positive)
+    answer: typing.Dict[str, float] = dict()
+    answer["Accuracy"] = safe_ratio(true_positive + true_negative, actual_positive + actual_negative)
+    answer["F1"] = safe_ratio(2 * true_positive, 2 * true_positive + false_positive + false_negative)
+    answer["Sensitivity"] = safe_ratio(true_positive, actual_positive)
+    answer["Specificity"] = safe_ratio(true_negative, actual_negative)
+    answer["Precision"] = safe_ratio(true_positive, predicted_positive)
     answer["Balanced accuracy"] = (answer["Sensitivity"] + answer["Specificity"]) / 2
     answer["Informedness"] = answer["Sensitivity"] + answer["Specificity"] - 1
-    answer["Positive predictive value"] = true_positive / positive
-    answer["Negative predictive value"] = true_negative / negative
+    answer["Positive predictive value"] = answer["Precision"]
+    answer["Negative predictive value"] = safe_ratio(true_negative, predicted_negative)
     answer["Markedness"] = answer["Positive predictive value"] + answer["Negative predictive value"] - 1
-    answer["Threat score"] = true_positive / (true_positive + false_negative + false_positive)
-    answer["Fowlkes–Mallows index"] = numpy.sqrt(answer["Positive predictive value"] * answer["Sensitivity"])
+    answer["Threat score"] = safe_ratio(true_positive, true_positive + false_negative + false_positive)
+    answer["Fowlkes–Mallows index"] = float(numpy.sqrt(answer["Positive predictive value"] * answer["Sensitivity"]))
     return answer
 
 
