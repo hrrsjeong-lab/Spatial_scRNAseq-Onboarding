@@ -422,20 +422,29 @@ step13-optimal: Output/13_Ingest/$(OPTIMAL).01_Seurat.Level0.hdf5 Output/13_Inge
 step13: Output/13_Ingest/$(OPTIMAL).01_Seurat.Level3.hdf5 Output/13_Ingest/Figures/$(OPTIMAL).01_Seurat.Level3.zip
 .PHONY: step13-test step13-optimal step13
 
-# Step 14 (Evaluate ingest)
+# Step 14 (CellTypist v. Truth and Ingest v. Truth; the same authors' annotation for both)
 Output/14_Evaluate_ingest:
 	mkdir -p $@
 
 Output/14_Evaluate_ingest/Figures:
 	mkdir -p $@
 
-Output/14_Evaluate_ingest/%.hdf5: Python/evaluate_celltype_ingest.py Output/13_Ingest/%.hdf5 Output/11_Evaluate_celltype/%.01_umap.02_Louvain.09_McGregor2025_scRNA_all.hdf5 $(EVALUATE_LABEL_MAP_09) Python/evaluate_marker_genes.py | Output/14_Evaluate_ingest
-	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $(word 3,$^) $@) --label-map $(abspath $(word 4,$^)) $(LOGGING)
+Output/14_Evaluate_ingest/%.Level0.CellTypist.hdf5: Python/evaluate_celltype_ingest.py Output/11_Evaluate_celltype/%.01_umap.02_Louvain.09_McGregor2025_scRNA_all.hdf5 Output/04_Highly_variable_genes/%.hdf5 Python/evaluate_marker_genes.py | Output/14_Evaluate_ingest
+	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $(word 3,$^) $@) --method CellTypist --truth-column "$(EVALUATE_TRUE_COLUMN)" --fine-column "$(EVALUATE_FINE_COLUMN)" --label-map $(abspath $(EVALUATE_LABEL_MAP_09)) $(LOGGING)
+
+Output/14_Evaluate_ingest/%.Level0.Ingest.hdf5: Python/evaluate_celltype_ingest.py Output/13_Ingest/%.Level0.hdf5 Output/04_Highly_variable_genes/%.hdf5 Python/evaluate_marker_genes.py | Output/14_Evaluate_ingest
+	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $(word 3,$^) $@) --method Ingest --truth-column "$(EVALUATE_TRUE_COLUMN)" --fine-column "$(EVALUATE_FINE_COLUMN)" --label-map $(abspath $(EVALUATE_LABEL_MAP_09)) $(LOGGING)
+
+Output/14_Evaluate_ingest/%.Level3.CellTypist.hdf5: Python/evaluate_celltype_ingest.py Output/11_Evaluate_celltype/%.01_umap.02_Louvain.09_McGregor2025_scRNA_all.hdf5 Output/04_Highly_variable_genes/%.hdf5 Python/evaluate_marker_genes.py | Output/14_Evaluate_ingest
+	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $(word 3,$^) $@) --method CellTypist --truth-column "$(EVALUATE_FINE_COLUMN)" $(LOGGING)
+
+Output/14_Evaluate_ingest/%.Level3.Ingest.hdf5: Python/evaluate_celltype_ingest.py Output/13_Ingest/%.Level3.hdf5 Output/04_Highly_variable_genes/%.hdf5 Python/evaluate_marker_genes.py | Output/14_Evaluate_ingest
+	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $(word 3,$^) $@) --method Ingest --truth-column "$(EVALUATE_FINE_COLUMN)" $(LOGGING)
 
 Output/14_Evaluate_ingest/Figures/%.zip: Python/draw_evaluate_marker_genes.py Output/14_Evaluate_ingest/%.hdf5 | Output/14_Evaluate_ingest/Figures
 	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
-step14-test: Output/14_Evaluate_ingest/Test.01_Seurat.hdf5 Output/14_Evaluate_ingest/Figures/Test.01_Seurat.zip
-step14-optimal: Output/14_Evaluate_ingest/$(OPTIMAL).01_Seurat.hdf5 Output/14_Evaluate_ingest/Figures/$(OPTIMAL).01_Seurat.zip
-step14:
+step14-test: Output/14_Evaluate_ingest/Test.01_Seurat.Level0.CellTypist.hdf5 Output/14_Evaluate_ingest/Test.01_Seurat.Level0.Ingest.hdf5 Output/14_Evaluate_ingest/Figures/Test.01_Seurat.Level0.CellTypist.zip Output/14_Evaluate_ingest/Figures/Test.01_Seurat.Level0.Ingest.zip
+step14-optimal: Output/14_Evaluate_ingest/$(OPTIMAL).01_Seurat.Level0.CellTypist.hdf5 Output/14_Evaluate_ingest/$(OPTIMAL).01_Seurat.Level0.Ingest.hdf5 Output/14_Evaluate_ingest/Figures/$(OPTIMAL).01_Seurat.Level0.CellTypist.zip Output/14_Evaluate_ingest/Figures/$(OPTIMAL).01_Seurat.Level0.Ingest.zip
+step14: Output/14_Evaluate_ingest/$(OPTIMAL).01_Seurat.Level3.CellTypist.hdf5 Output/14_Evaluate_ingest/$(OPTIMAL).01_Seurat.Level3.Ingest.hdf5 Output/14_Evaluate_ingest/Figures/$(OPTIMAL).01_Seurat.Level3.CellTypist.zip Output/14_Evaluate_ingest/Figures/$(OPTIMAL).01_Seurat.Level3.Ingest.zip
 .PHONY: step14-test step14-optimal step14
