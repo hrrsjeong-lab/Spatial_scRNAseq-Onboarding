@@ -35,12 +35,11 @@ def cluster_order(values: typing.Iterable[typing.Any]) -> typing.List[str]:
     return sorted(set(map(str, values)), key=lambda value: (not value.isdigit(), int(value) if value.isdigit() else 0, value))
 
 
-def knn_vote(indices: numpy.ndarray, codes: numpy.ndarray, n_labels: int) -> typing.Tuple[numpy.ndarray, numpy.ndarray]:
+def knn_vote(indices: numpy.ndarray, codes: numpy.ndarray, n_labels: int) -> typing.Tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
     neighbor_codes = codes[indices]
     counts = numpy.stack([(neighbor_codes == code).sum(axis=1) for code in tqdm.trange(n_labels)], axis=1)
     best = counts.argmax(axis=1)
-    return best, counts[numpy.arange(best.size), best] / indices.shape[1]
-
+    return best, counts[numpy.arange(best.size), best] / indices.shape[1], counts / indices.shape[1]
 
 def best_match(crosstab: pandas.DataFrame) -> pandas.DataFrame:
     return pandas.DataFrame({"Top ingest label": crosstab.idxmax(axis=1), "Fraction": crosstab.max(axis=1) / crosstab.sum(axis=1), "Cells": crosstab.sum(axis=1)})
@@ -121,7 +120,7 @@ if __name__ == "__main__":
         print(query_adata)
 
     with notebook.cell("Label vote"):
-        best, fraction = knn_vote(ingest._indices, categories.codes.astype(numpy.int64), len(categories.categories))
+        best, fraction, vote_fraction = knn_vote(ingest._indices, categories.codes.astype(numpy.int64), len(categories.categories))
         distance = ingest._distances.mean(axis=1)
         reference_distance = numpy.asarray(scipy.sparse.csr_matrix(reference_adata.obsp["distances"]).sum(axis=1)).ravel() / (args.neighbors - 1)
         distance_cut = numpy.quantile(reference_distance, args.distance_quantile) if (args.distance_quantile > 0) else numpy.inf
@@ -182,6 +181,9 @@ if __name__ == "__main__":
 
         output_adata = anndata.AnnData(obs=output_obs)
         output_adata.obsm[step00.harmony_key] = embedding
+        vote_array = numpy.full((obs.shape[0], len(categories.categories)), numpy.nan, dtype=numpy.float32)
+        vote_array[query_index] = vote_fraction
+        output_adata.obsm[predicted_column] = pandas.DataFrame(vote_array, index=output_obs.index, columns=[str(category) for category in categories.categories])
         if args.umap:
             projection = numpy.full((obs.shape[0], 2), numpy.nan)
             projection[reference_index] = reference_adata.obsm["X_umap"]
