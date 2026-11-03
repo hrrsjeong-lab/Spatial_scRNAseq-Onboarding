@@ -332,7 +332,7 @@ Output/09_Xenium/Figures/%.zip: Python/draw_xenium_coordinates.py Output/08_Mark
 
 step09-test: Output/09_Xenium/Figures/Test.01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.zip
 step09-optimal: Output/09_Xenium/Figures/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.zip
-step09:
+step09: Output/08_Marker_genes/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.11_Ingest_McGregor2025_scRNA_all.hdf5 Output/09_Xenium/Figures/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.11_Ingest_McGregor2025_scRNA_all.zip
 .PHONY: step09-test step09-optimal step09
 
 # Step 10 (Neighborhood enrichment)
@@ -350,7 +350,7 @@ Output/10_Neighborhood/Figures/%.zip: Python/draw_nhood_enrichment.py Output/10_
 
 step10-test: Output/10_Neighborhood/Test.01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.hdf5 Output/10_Neighborhood/Figures/Test.01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.zip
 step10-optimal: Output/10_Neighborhood/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.hdf5 Output/10_Neighborhood/Figures/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.09_McGregor2025_scRNA_all.zip
-step10:
+step10: Output/08_Marker_genes/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.11_Ingest_McGregor2025_scRNA_all.hdf5 Output/10_Neighborhood/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.11_Ingest_McGregor2025_scRNA_all.hdf5 Output/10_Neighborhood/Figures/$(OPTIMAL).01_Seurat.01_umap.02_Louvain.11_Ingest_McGregor2025_scRNA_all.zip
 .PHONY: step10-test step10-optimal step10
 
 # Step 11 (Evaluate celltype)
@@ -416,6 +416,9 @@ Output/13_Ingest/Figures/%.Level0.zip: Python/draw_marker_genes_2.py Output/13_I
 
 Output/13_Ingest/Figures/%.Level3.zip: Python/draw_marker_genes_2.py Output/13_Ingest/%.Level3.hdf5 Output/06_Dimensional_reduction/%.GLUE.01_umap.hdf5 Python/evaluate_marker_genes.py Python/predict_celltype_ingest.py | Output/13_Ingest/Figures
 	$(SLURM) $(PYTHON) $(abspath $(word 1,$^) $(word 2,$^) $@) --projection $(abspath $(word 3,$^)) --label-map $(abspath $(EVALUATE_LABEL_MAP_09)) --fine-column "$(EVALUATE_FINE_COLUMN)" $(LOGGING)
+
+Output/08_Marker_genes/%.11_Ingest_McGregor2025_scRNA_all.hdf5: Python/select_ingest_celltype.py Output/07_Clustering/%.hdf5 Output/13_Ingest/$$(call sample_prefix,$$*).Level0.hdf5
+	$(SLURM) $(PYTHON) $(abspath $^ $@) $(LOGGING)
 
 step13-test: Output/13_Ingest/Test.01_Seurat.Level0.hdf5 Output/13_Ingest/Figures/Test.01_Seurat.Level0.zip
 step13-optimal: Output/13_Ingest/$(OPTIMAL).01_Seurat.Level0.hdf5 Output/13_Ingest/Figures/$(OPTIMAL).01_Seurat.Level0.zip
